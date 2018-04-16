@@ -1,5 +1,5 @@
 import { resolve } from 'app-root-path';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import installExtension, {
   ExtensionReference,
   REACT_DEVELOPER_TOOLS,
@@ -59,6 +59,13 @@ function createWindow() {
     // 通常会把多个 window 对象存放在一个数组里面，
     // 与此同时，你应该删除相应的元素。
     win = null;
+  });
+
+  ipcMain.on('async-msg', (event: Electron.Event, arg?: string) => {
+    const response = 'pong';
+    // tslint:disable-next-line:no-console
+    console.log(`request: ${arg}\nresponse: ${response}`);
+    event.sender.send('async-reply', response);
   });
 }
 
