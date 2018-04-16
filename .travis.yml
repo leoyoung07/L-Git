@@ -1,0 +1,10 @@
+language: node_js
+node_js: lts/*
+env:
+  global:
+  - APP_NAME=L-Git
+  - CSC_IDENTITY_AUTO_DISCOVERY=false
+install:
+  - yarn install
+script:
+  - yarn test --coverage
