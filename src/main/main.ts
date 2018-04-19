@@ -1,4 +1,5 @@
 import { resolve } from 'app-root-path';
+import { spawn } from 'child_process';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import installExtension, {
   ExtensionReference,
@@ -61,11 +62,29 @@ function createWindow() {
     win = null;
   });
 
-  ipcMain.on('async-msg', (event: Electron.Event, arg?: string) => {
-    const response = 'pong';
-    // tslint:disable-next-line:no-console
-    console.log(`request: ${arg}\nresponse: ${response}`);
-    event.sender.send('async-reply', response);
+  ipcMain.on('async-msg', (event: Electron.Event, msg?: string) => {
+    if (msg) {
+      const command: {cmd: string, args: Array<string>, cwd: string} = JSON.parse(msg);
+      const child = spawn(command.cmd, command.args, {
+        cwd: command.cwd,
+        detached: true
+      });
+      child.stdout.on('data', (data) => {
+        if (typeof data !== 'string') {
+          data = data.toString();
+        }
+        let reply = data.split('\n').map(line => {
+          return line.trim();
+        });
+        event.sender.send('async-reply', JSON.stringify(reply));
+      });
+      child.stderr.on('data', (data) => {
+        if (typeof data !== 'string') {
+          data = data.toString();
+        }
+        event.sender.send('async-reply', 'Error: ' + data);
+      });
+    }
   });
 }
 
