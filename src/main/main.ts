@@ -7,6 +7,7 @@ import installExtension, {
   REDUX_DEVTOOLS
 } from 'electron-devtools-installer';
 import isDev from 'electron-is-dev';
+import Git from 'nodegit';
 import path from 'path';
 import url from 'url';
 
@@ -62,28 +63,26 @@ function createWindow() {
     win = null;
   });
 
-  ipcMain.on('async-msg', (event: Electron.Event, msg?: string) => {
+  ipcMain.on('async-msg', async (event: Electron.Event, msg?: string) => {
     if (msg) {
       const command: {cmd: string, args: Array<string>, cwd: string} = JSON.parse(msg);
-      const child = spawn(command.cmd, command.args, {
-        cwd: command.cwd,
-        detached: true
-      });
-      child.stdout.on('data', (data) => {
-        if (typeof data !== 'string') {
-          data = data.toString();
+      if (command.args[0] === 'status') {
+        function statusToText(status: Git.StatusFile) {
+          const words = [];
+          if (status.isNew()) { words.push('NEW'); }
+          if (status.isModified()) { words.push('MODIFIED'); }
+          if (status.isTypechange()) { words.push('TYPECHANGE'); }
+          if (status.isRenamed()) { words.push('RENAMED'); }
+          if (status.isIgnored()) { words.push('IGNORED'); }
+          return words.join(' ');
         }
-        let reply = data.split('\n').map(line => {
-          return line.trim();
+        const repository = await Git.Repository.open(command.cwd);
+        const statuses = await repository.getStatus();
+        const reply = statuses.map(status => {
+          return status.path() + ' ' + statusToText(status);
         });
         event.sender.send('async-reply', JSON.stringify(reply));
-      });
-      child.stderr.on('data', (data) => {
-        if (typeof data !== 'string') {
-          data = data.toString();
-        }
-        event.sender.send('async-reply', 'Error: ' + data);
-      });
+      }
     }
   });
 }

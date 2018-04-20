@@ -9,17 +9,22 @@
     "electron:launch": "run-s parcel:main electron:start",
     "electron:start": "electron .",
     "electron:build": "build --dir --x64 --publish=never",
+    "electron:rebuild": "electron-rebuild",
     "parcel:launch": "parcel src/renderer/index.html -p 1124 -d dist/renderer/development --target=electron",
     "parcel:build": "run-s parcel:main parcel:renderer",
     "parcel:main": "parcel build src/main/main.ts -d dist/main --out-file=main --public-url ./ --target=electron --no-minify",
     "parcel:renderer": "parcel build src/renderer/index.html --public-url ./ -d dist/renderer/production --target=electron",
     "test": "run-s parcel:build \"test:jest {@}\" --",
     "test:jest": "jest",
-    "lint": "tslint src/**/*.ts{,x}"
+    "lint": "tslint src/**/*.ts{,x}",
+    "postinstall": "electron-builder install-app-deps",
+    "prebuild": "rm -rf dist/",
+    "build": "run-s parcel:build electron:build"
   },
   "build": {
     "files": [
-      "dist/**",
+      "dist/main/**",
+      "dist/renderer/**",
       "!dist/renderer/development/**",
       "!dist/**/*.map"
     ]
@@ -55,7 +60,9 @@
   "author": "Leo Young",
   "license": "MIT",
   "dependencies": {
+    "app-root-path": "^2.0.1",
     "electron-is-dev": "^0.3.0",
+    "nodegit": "^0.22.0",
     "react": "^16.3.1",
     "react-dom": "^16.3.1"
   },
@@ -64,16 +71,17 @@
     "@types/electron-devtools-installer": "^2.0.3",
     "@types/electron-is-dev": "^0.3.0",
     "@types/jest": "^22.2.2",
+    "@types/nodegit": "^0.18.6",
     "@types/react": "^16.3.9",
     "@types/react-dom": "^16.0.5",
     "@types/webdriverio": "^4.10.1",
-    "app-root-path": "^2.0.1",
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
     "electron": "^1.8.4",
     "electron-builder": "^20.8.1",
     "electron-devtools-installer": "^2.2.3",
+    "electron-rebuild": "^1.7.3",
     "jest": "^22.4.3",
     "node-sass": "^4.8.3",
     "npm-run-all": "^4.1.2",
