@@ -1,5 +1,6 @@
 import { ipcRenderer } from 'electron';
 import React from 'react';
+import { GIT_COMMANDS, GIT_STATUS, IGitCommand, IGitResult } from '../ipc_common/constants';
 
 interface IProps {
 
@@ -18,10 +19,11 @@ class MainView extends React.Component<IProps, IState> {
       response: []
     };
 
-    ipcRenderer.on('async-reply', (event: Electron.Event, reply?: string) => {
-      if (reply) {
+    ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
+      if (msg) {
+        const reply = JSON.parse(msg) as IGitResult;
         this.setState({
-          response: JSON.parse(reply)
+          response: reply.result
         });
       }
     });
@@ -44,12 +46,12 @@ class MainView extends React.Component<IProps, IState> {
 
   private handleGitStatusButtonClick (e: React.MouseEvent<HTMLButtonElement>) {
     const command = {
-      cmd: 'git',
-      args: ['status'],
+      cmd: 'status',
+      args: [],
       cwd: process.cwd()
     };
     const request = JSON.stringify(command);
-    ipcRenderer.send('async-msg', request);
+    ipcRenderer.send('git-command', request);
     this.setState({
       request: request,
       response: []

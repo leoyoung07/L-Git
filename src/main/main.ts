@@ -10,6 +10,7 @@ import isDev from 'electron-is-dev';
 import Git from 'nodegit';
 import path from 'path';
 import url from 'url';
+import { GIT_COMMANDS, GIT_STATUS, IGitCommand, IGitResult } from '../ipc_common/constants';
 
 async function installDevExtension(extension: ExtensionReference) {
   try {
@@ -20,6 +21,38 @@ async function installDevExtension(extension: ExtensionReference) {
     // tslint:disable-next-line:no-console
     console.log('An error occurred: ', error);
   }
+}
+
+function statusToText(status: Git.StatusFile) {
+  const words = [];
+  if (status.isNew()) {
+    words.push(GIT_STATUS.NEW);
+  }
+  if (status.isModified()) {
+    words.push(GIT_STATUS.MODIFIED);
+  }
+  if (status.isTypechange()) {
+    words.push(GIT_STATUS.TYPECHANGE);
+  }
+  if (status.isRenamed()) {
+    words.push(GIT_STATUS.RENAMED);
+  }
+  if (status.isIgnored()) {
+    words.push(GIT_STATUS.IGNORED);
+  }
+  return words.join(' ');
+}
+
+async function gitStatusHandler(command: IGitCommand) {
+  const repository = await Git.Repository.open(command.cwd);
+  const statuses = await repository.getStatus();
+  const reply: IGitResult = {
+    cmd: command.cmd,
+    result: statuses.map(status => {
+      return status.path() + ' ' + statusToText(status);
+    })
+  };
+  return reply;
 }
 
 // 保持一个对于 window 对象的全局引用，如果你不这样做，
@@ -63,26 +96,16 @@ function createWindow() {
     win = null;
   });
 
-  ipcMain.on('async-msg', async (event: Electron.Event, msg?: string) => {
+  ipcMain.on('git-command', async (event: Electron.Event, msg?: string) => {
     if (msg) {
-      const command: {cmd: string, args: Array<string>, cwd: string} = JSON.parse(msg);
-      if (command.args[0] === 'status') {
-        function statusToText(status: Git.StatusFile) {
-          const words = [];
-          if (status.isNew()) { words.push('NEW'); }
-          if (status.isModified()) { words.push('MODIFIED'); }
-          if (status.isTypechange()) { words.push('TYPECHANGE'); }
-          if (status.isRenamed()) { words.push('RENAMED'); }
-          if (status.isIgnored()) { words.push('IGNORED'); }
-          return words.join(' ');
-        }
-        const repository = await Git.Repository.open(command.cwd);
-        const statuses = await repository.getStatus();
-        const reply = statuses.map(status => {
-          return status.path() + ' ' + statusToText(status);
-        });
-        event.sender.send('async-reply', JSON.stringify(reply));
+      const command: IGitCommand = JSON.parse(msg);
+      let reply: IGitResult;
+      if (command.cmd === GIT_COMMANDS.STATUS) {
+        reply = await gitStatusHandler(command);
+      } else {
+        reply = { cmd: command.cmd, result: [] };
       }
+      event.sender.send('git-result', JSON.stringify(reply));
     }
   });
 }
