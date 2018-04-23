@@ -1,14 +1,14 @@
 {
   "name": "l-git",
   "version": "1.0.0",
-  "description": "",
+  "description": "A simple git client",
   "main": "dist/main/main.js",
   "scripts": {
     "start": "run-p -r parcel:launch electron:launch",
     "dist": "run-s parcel:build \"electron:build {@}\" --",
     "electron:launch": "run-s parcel:main electron:start",
     "electron:start": "electron .",
-    "electron:build": "build --dir --x64 --publish=never",
+    "electron:build": "electron-builder --dir --x64 --publish=never",
     "electron:rebuild": "electron-rebuild",
     "parcel:launch": "parcel src/renderer/index.html -p 1124 -d dist/renderer/development --target=electron",
     "parcel:build": "run-s parcel:main parcel:renderer",
@@ -22,12 +22,7 @@
     "build": "run-s parcel:build electron:build"
   },
   "build": {
-    "files": [
-      "dist/main/**",
-      "dist/renderer/**",
-      "!dist/renderer/development/**",
-      "!dist/**/*.map"
-    ]
+    "appId": "leoyoung.l-git"
   },
   "jest": {
     "verbose": true,
@@ -60,7 +55,6 @@
   "author": "Leo Young",
   "license": "MIT",
   "dependencies": {
-    "app-root-path": "^2.0.1",
     "electron-is-dev": "^0.3.0",
     "nodegit": "^0.22.0",
     "react": "^16.3.1",
@@ -78,6 +72,7 @@
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
+    "app-root-path": "^2.0.1",
     "electron": "^1.8.4",
     "electron-builder": "^20.8.1",
     "electron-devtools-installer": "^2.2.3",
