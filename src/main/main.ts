@@ -10,54 +10,19 @@ import isDev from 'electron-is-dev';
 import Git from 'nodegit';
 import path from 'path';
 import url from 'url';
-import { GIT_COMMANDS, GIT_STATUS, IGitCommand, IGitResult } from '../ipc_common/constants';
-
-async function installDevExtension(extension: ExtensionReference) {
-  try {
-    let name = await installExtension(extension);
-    // tslint:disable-next-line:no-console
-    console.log(`Added Extension:  ${name}`);
-  } catch (error) {
-    // tslint:disable-next-line:no-console
-    console.log('An error occurred: ', error);
-  }
-}
-
-function statusToText(status: Git.StatusFile) {
-  const words = [];
-  if (status.isNew()) {
-    words.push(GIT_STATUS.NEW);
-  }
-  if (status.isModified()) {
-    words.push(GIT_STATUS.MODIFIED);
-  }
-  if (status.isTypechange()) {
-    words.push(GIT_STATUS.TYPECHANGE);
-  }
-  if (status.isRenamed()) {
-    words.push(GIT_STATUS.RENAMED);
-  }
-  if (status.isIgnored()) {
-    words.push(GIT_STATUS.IGNORED);
-  }
-  return words.join(' ');
-}
-
-async function gitStatusHandler(command: IGitCommand) {
-  const repository = await Git.Repository.open(command.cwd);
-  const statuses = await repository.getStatus();
-  const reply: IGitResult = {
-    cmd: command.cmd,
-    result: statuses.map(status => {
-      return status.path() + ' ' + statusToText(status);
-    })
-  };
-  return reply;
-}
+import {
+  COMMAND_STATE,
+  GIT_COMMANDS,
+  GIT_STATUS,
+  IGitCommand,
+  IGitResult
+} from '../ipc_common/constants';
 
 // 保持一个对于 window 对象的全局引用，如果你不这样做，
 // 当 JavaScript 对象被垃圾回收， window 会被自动地关闭
 let win: BrowserWindow | null;
+
+let repository: Git.Repository;
 
 function createWindow() {
   // 创建浏览器窗口。
@@ -100,10 +65,23 @@ function createWindow() {
     if (msg) {
       const command: IGitCommand = JSON.parse(msg);
       let reply: IGitResult;
-      if (command.cmd === GIT_COMMANDS.STATUS) {
-        reply = await gitStatusHandler(command);
-      } else {
-        reply = { cmd: command.cmd, result: [] };
+      switch (command.cmd) {
+        case GIT_COMMANDS.STATUS:
+          reply = await statusHandler(command);
+          break;
+        case GIT_COMMANDS.OPEN:
+          reply = await openHandler(command);
+          break;
+        default:
+          reply = {
+            cmd: command.cmd,
+            repository: repository ? repository.path() : '',
+            result: {
+              state: COMMAND_STATE.SUCCESS,
+              data: []
+            }
+          };
+          break;
       }
       event.sender.send('git-result', JSON.stringify(reply));
     }
@@ -134,3 +112,79 @@ app.on('activate', () => {
 
 // 在这文件，你可以续写应用剩下主进程代码。
 // 也可以拆分成几个文件，然后用 require 导入。
+
+async function installDevExtension(extension: ExtensionReference) {
+  try {
+    let name = await installExtension(extension);
+    // tslint:disable-next-line:no-console
+    console.log(`Added Extension:  ${name}`);
+  } catch (error) {
+    // tslint:disable-next-line:no-console
+    console.log('An error occurred: ', error);
+  }
+}
+
+function statusToText(status: Git.StatusFile) {
+  const words = [];
+  if (status.isNew()) {
+    words.push(GIT_STATUS.NEW);
+  }
+  if (status.isModified()) {
+    words.push(GIT_STATUS.MODIFIED);
+  }
+  if (status.isTypechange()) {
+    words.push(GIT_STATUS.TYPECHANGE);
+  }
+  if (status.isRenamed()) {
+    words.push(GIT_STATUS.RENAMED);
+  }
+  if (status.isIgnored()) {
+    words.push(GIT_STATUS.IGNORED);
+  }
+  return words.join(' ');
+}
+
+async function openHandler(command: IGitCommand): Promise<IGitResult> {
+  let repositoryPath: string;
+  if (command.args.length > 0) {
+    repositoryPath = command.args[0];
+  } else {
+    repositoryPath = command.cwd;
+  }
+  repository = await Git.Repository.open(repositoryPath);
+  return {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: []
+    }
+  };
+}
+
+async function statusHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const statuses = await repository.getStatus();
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: statuses.map(status => {
+          return status.path() + ' ' + statusToText(status);
+        })
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}

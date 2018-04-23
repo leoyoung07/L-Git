@@ -6,10 +6,17 @@ export interface IGitCommand {
 
 export interface IGitResult {
   cmd: string;
-  result: Array<string>;
+  repository: string;
+  result: {
+    state: COMMAND_STATE,
+    data: Array<string>
+  };
 }
 
 export enum GIT_COMMANDS {
+  DIFF = 'diff',
+  LOG = 'log',
+  OPEN = 'open',
   STATUS = 'status'
 }
 
@@ -19,4 +26,9 @@ export enum GIT_STATUS {
   TYPECHANGE = 'TYPECHANGE',
   RENAMED = 'RENAMED',
   IGNORED = 'IGNORED'
+}
+
+export enum COMMAND_STATE {
+  SUCCESS = 'success',
+  FAIL = 'fail'
 }
