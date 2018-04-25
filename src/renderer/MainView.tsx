@@ -12,6 +12,8 @@ interface IProps {}
 
 interface IState {
   error: string;
+
+  openPath: string;
   repositoryPath: string;
   request: string;
   response: Array<string>;
@@ -26,7 +28,8 @@ class MainView extends React.Component<IProps, IState> {
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
     this.state = {
       error: '',
-      repositoryPath: process.cwd(),
+      openPath: process.cwd(),
+      repositoryPath: '',
       request: '',
       response: []
     };
@@ -53,7 +56,11 @@ class MainView extends React.Component<IProps, IState> {
     return (
       <div>
         <div>
-          <input type="text" value={this.state.repositoryPath} onChange={this.handlePathInputChange}/>
+          <input
+            type="text"
+            value={this.state.openPath}
+            onChange={this.handlePathInputChange}
+          />
           <button onClick={this.handleGitOpenButtonClick}>Git Open</button>
         </div>
         <div>
@@ -99,9 +106,7 @@ class MainView extends React.Component<IProps, IState> {
   private handleGitOpenButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
     const command = {
       cmd: GIT_COMMANDS.OPEN,
-      args: [
-        this.state.repositoryPath
-      ],
+      args: [this.state.openPath],
       cwd: process.cwd()
     };
     const request = JSON.stringify(command);
@@ -115,7 +120,7 @@ class MainView extends React.Component<IProps, IState> {
 
   private handlePathInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     this.setState({
-      repositoryPath: e.target.value
+      openPath: e.target.value
     });
   }
 }
