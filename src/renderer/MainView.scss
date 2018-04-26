@@ -1,0 +1,7 @@
+@import url('../../node_modules/codemirror/lib/codemirror.css');
+@import url('../../node_modules/codemirror/theme/seti.css');
+@import url('../../node_modules/codemirror/addon/merge/merge.css');
+
+.CodeMirror {
+  font-family: "SFMono-Regular",Consolas,"Liberation Mono",Menlo,Courier,monospace
+}

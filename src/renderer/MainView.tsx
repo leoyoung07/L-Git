@@ -1,3 +1,6 @@
+import CodeMirror from 'codemirror';
+import 'codemirror/addon/merge/merge';
+import 'codemirror/mode/javascript/javascript';
 import { ipcRenderer } from 'electron';
 import React from 'react';
 import {
@@ -7,6 +10,7 @@ import {
   IGitCommand,
   IGitResult
 } from '../ipc_common/constants';
+import './MainView.scss';
 
 interface IProps {}
 
@@ -17,6 +21,7 @@ interface IState {
   repositoryPath: string;
   request: string;
   response: Array<string>;
+  code: string;
 }
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
@@ -26,12 +31,14 @@ class MainView extends React.Component<IProps, IState> {
     );
     this.handleGitOpenButtonClick = this.handleGitOpenButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
+    this.updateCode = this.updateCode.bind(this);
     this.state = {
       error: '',
       openPath: process.cwd(),
       repositoryPath: '',
       request: '',
-      response: []
+      response: [],
+      code: '// Code'
     };
 
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
@@ -51,6 +58,17 @@ class MainView extends React.Component<IProps, IState> {
         }
       }
     });
+  }
+
+  componentDidMount () {
+    const $mergeView = document.getElementById('mergeView');
+    if ($mergeView) {
+      CodeMirror.MergeView($mergeView, {
+        value: this.state.code,
+        orig: this.state.code + '...',
+        origLeft: this.state.code + 'left'
+      });
+    }
   }
   render() {
     return (
@@ -84,6 +102,7 @@ class MainView extends React.Component<IProps, IState> {
         </ul>
         <h1>Repository: </h1>
         <p>{this.state.repositoryPath}</p>
+        <div id="mergeView" />
       </div>
     );
   }
@@ -121,6 +140,12 @@ class MainView extends React.Component<IProps, IState> {
   private handlePathInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     this.setState({
       openPath: e.target.value
+    });
+  }
+
+  private updateCode(newCode: string) {
+    this.setState({
+      code: newCode
     });
   }
 }
