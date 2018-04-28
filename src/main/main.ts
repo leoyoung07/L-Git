@@ -72,6 +72,9 @@ function createWindow() {
         case GIT_COMMANDS.OPEN:
           reply = await openHandler(command);
           break;
+        case GIT_COMMANDS.DIFF:
+          reply = await diffHandler(command);
+          break;
         default:
           reply = {
             cmd: command.cmd,
@@ -174,6 +177,47 @@ async function statusHandler(command: IGitCommand): Promise<IGitResult> {
         data: statuses.map(status => {
           return status.path() + ' ' + statusToText(status);
         })
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}
+
+async function diffHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const head = await repository.getHeadCommit();
+    const diffs = await head.getDiff();
+    const files = await Promise.all(diffs.map(async diff => {
+      const patches = await diff.patches();
+      const patchContent = await Promise.all(patches.map(async patch => {
+        const hunks = await patch.hunks();
+        const hunkContent = await Promise.all(hunks.map(async hunk => {
+          const lines = await hunk.lines();
+          const content = lines.map(line => {
+            return line.content();
+          }).join('\n');
+          return content;
+        }));
+        return hunkContent.join('\n\n');
+      }));
+      return patchContent.join('\n\n\n');
+    }));
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: files
       }
     };
   } else {

@@ -30,6 +30,7 @@ class MainView extends React.Component<IProps, IState> {
       this
     );
     this.handleGitOpenButtonClick = this.handleGitOpenButtonClick.bind(this);
+    this.handleGitDiffButtonClick = this.handleGitDiffButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
     this.updateCode = this.updateCode.bind(this);
     this.state = {
@@ -45,11 +46,21 @@ class MainView extends React.Component<IProps, IState> {
       if (msg) {
         const reply = JSON.parse(msg) as IGitResult;
         if (reply.result.state === COMMAND_STATE.SUCCESS) {
-          this.setState({
-            error: '',
-            repositoryPath: reply.repository,
-            response: reply.result.data
-          });
+          if (reply.cmd === GIT_COMMANDS.DIFF) {
+            this.setState({
+              error: '',
+              repositoryPath: reply.repository,
+              response: reply.result.data,
+              code: reply.result.data.join('\n')
+            });
+          } else {
+            this.setState({
+              error: '',
+              repositoryPath: reply.repository,
+              response: reply.result.data
+            });
+          }
+
         } else {
           this.setState({
             error: reply.result.data[0],
@@ -61,16 +72,23 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   componentDidMount () {
-    const $mergeView = document.getElementById('mergeView');
-    if ($mergeView) {
-      CodeMirror.MergeView($mergeView, {
-        value: this.state.code,
-        orig: this.state.code + '...',
-        origLeft: this.state.code + 'left'
-      });
-    }
+    // const $mergeView = document.getElementById('mergeView');
+    // if ($mergeView) {
+    //   CodeMirror.MergeView($mergeView, {
+    //     value: this.state.code,
+    //     orig: this.state.code + '...',
+    //     origLeft: this.state.code + 'left'
+    //   });
+    // }
   }
   render() {
+    const $code = document.getElementById('code');
+    if ($code) {
+      $code.innerHTML = '';
+      CodeMirror($code, {
+        value: this.state.code
+      });
+    }
     return (
       <div>
         <div>
@@ -83,6 +101,9 @@ class MainView extends React.Component<IProps, IState> {
         </div>
         <div>
           <button onClick={this.handleGitStatusButtonClick}>Git Status</button>
+        </div>
+        <div>
+          <button onClick={this.handleGitDiffButtonClick}>Git Diff</button>
         </div>
         <h1>Request: </h1>
         <p>{this.state.request}</p>
@@ -102,7 +123,7 @@ class MainView extends React.Component<IProps, IState> {
         </ul>
         <h1>Repository: </h1>
         <p>{this.state.repositoryPath}</p>
-        <div id="mergeView" />
+        <div id="code" />
       </div>
     );
   }
@@ -125,6 +146,21 @@ class MainView extends React.Component<IProps, IState> {
   private handleGitOpenButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
     const command = {
       cmd: GIT_COMMANDS.OPEN,
+      args: [this.state.openPath],
+      cwd: process.cwd()
+    };
+    const request = JSON.stringify(command);
+    ipcRenderer.send('git-command', request);
+    this.setState({
+      error: '',
+      request: request,
+      response: []
+    });
+  }
+
+  private handleGitDiffButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    const command = {
+      cmd: GIT_COMMANDS.DIFF,
       args: [this.state.openPath],
       cwd: process.cwd()
     };
