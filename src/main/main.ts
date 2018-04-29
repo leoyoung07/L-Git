@@ -72,6 +72,9 @@ function createWindow() {
         case GIT_COMMANDS.OPEN:
           reply = await openHandler(command);
           break;
+        case GIT_COMMANDS.CHANGES:
+          reply = await changesHandler(command);
+          break;
         case GIT_COMMANDS.DIFF:
           reply = await diffHandler(command);
           break;
@@ -192,26 +195,52 @@ async function statusHandler(command: IGitCommand): Promise<IGitResult> {
   return reply;
 }
 
-async function diffHandler(command: IGitCommand): Promise<IGitResult> {
+async function changesHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
   if (repository) {
     const head = await repository.getHeadCommit();
     const diffs = await head.getDiff();
-    const files = await Promise.all(diffs.map(async diff => {
+    const files: Array<string> = [];
+    for (let i = 0; i < diffs.length; i++) {
+      const diff = diffs[i];
       const patches = await diff.patches();
-      const patchContent = await Promise.all(patches.map(async patch => {
-        const hunks = await patch.hunks();
-        const hunkContent = await Promise.all(hunks.map(async hunk => {
-          const lines = await hunk.lines();
-          const content = lines.map(line => {
-            return line.content();
-          }).join('\n');
-          return content;
-        }));
-        return hunkContent.join('\n\n');
-      }));
-      return patchContent.join('\n\n\n');
-    }));
+      patches.forEach(patch => {
+        files.push(patch.newFile().path());
+      });
+    }
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: files
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}
+
+async function diffHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const commit1 = await repository.getCommit(command.args[0]);
+    const tree1 = await commit1.getTree();
+    const commit2 = await repository.getCommit(command.args[1]);
+    const tree2 = await commit2.getTree();
+    const diff = await Git.Diff.treeToTree(repository, tree1, tree2);
+    const patches = await diff.patches();
+    const files = patches.map(patch => {
+      return patch.newFile().path();
+    });
     reply = {
       cmd: command.cmd,
       repository: repository.path(),
