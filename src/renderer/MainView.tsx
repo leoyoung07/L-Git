@@ -32,6 +32,7 @@ class MainView extends React.Component<IProps, IState> {
     this.handleGitOpenButtonClick = this.handleGitOpenButtonClick.bind(this);
     this.handleGitChangesButtonClick = this.handleGitChangesButtonClick.bind(this);
     this.handleGitDiffButtonClick = this.handleGitDiffButtonClick.bind(this);
+    this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
     this.updateCode = this.updateCode.bind(this);
     this.state = {
@@ -99,6 +100,9 @@ class MainView extends React.Component<IProps, IState> {
         <div>
           <button onClick={this.handleGitDiffButtonClick}>Git Diff</button>
         </div>
+        <div>
+          <button onClick={this.handleGitLogButtonClick}>Git Log</button>
+        </div>
         <h1>Request: </h1>
         <p>{this.state.request}</p>
         {this.state.error ? (
@@ -155,7 +159,7 @@ class MainView extends React.Component<IProps, IState> {
   private handleGitChangesButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
     const command = {
       cmd: GIT_COMMANDS.CHANGES,
-      args: [],
+      args: ['9f465a00a1d37ddeb3daf091b888330394c418e9'],
       cwd: process.cwd()
     };
     const request = JSON.stringify(command);
@@ -171,6 +175,21 @@ class MainView extends React.Component<IProps, IState> {
     const command = {
       cmd: GIT_COMMANDS.DIFF,
       args: ['9f465a00a1d37ddeb3daf091b888330394c418e9', '1db283b290d9646a910eec5c7a3cdecd1b8307a7'],
+      cwd: process.cwd()
+    };
+    const request = JSON.stringify(command);
+    ipcRenderer.send('git-command', request);
+    this.setState({
+      error: '',
+      request: request,
+      response: []
+    });
+  }
+
+  private handleGitLogButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    const command = {
+      cmd: GIT_COMMANDS.LOG,
+      args: [],
       cwd: process.cwd()
     };
     const request = JSON.stringify(command);

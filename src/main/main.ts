@@ -78,6 +78,9 @@ function createWindow() {
         case GIT_COMMANDS.DIFF:
           reply = await diffHandler(command);
           break;
+        case GIT_COMMANDS.LOG:
+          reply = await logHandler(command);
+          break;
         default:
           reply = {
             cmd: command.cmd,
@@ -198,8 +201,8 @@ async function statusHandler(command: IGitCommand): Promise<IGitResult> {
 async function changesHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
   if (repository) {
-    const head = await repository.getHeadCommit();
-    const diffs = await head.getDiff();
+    const commit = await repository.getCommit(command.args[0]);
+    const diffs = await commit.getDiff();
     const files: Array<string> = [];
     for (let i = 0; i < diffs.length; i++) {
       const diff = diffs[i];
@@ -260,4 +263,48 @@ async function diffHandler(command: IGitCommand): Promise<IGitResult> {
     };
   }
   return reply;
+}
+
+async function logHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const commit = await repository.getMasterCommit();
+    const historyCommits = await getHistory(commit);
+    const data = historyCommits.map(historyCommit => {
+      return historyCommit.message() + '|' + historyCommit.sha();
+    });
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: data
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}
+
+function getHistory(startCommit: Git.Commit): Promise<Array<Git.Commit>> {
+  const commits: Array<Git.Commit> = [];
+  // tslint:disable-next-line:no-shadowed-variable
+  return new Promise((resolve, reject) => {
+    const history = startCommit.history();
+    history.on('commit', function (commit: Git.Commit) {
+      commits.push(commit);
+    });
+    history.on('end', function (commit: Git.Commit) {
+      resolve(commits);
+    });
+    history.start();
+  });
 }
