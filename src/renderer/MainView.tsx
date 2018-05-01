@@ -22,6 +22,9 @@ interface IState {
   request: string;
   response: Array<string>;
   code: string;
+  currentCommit: string | null;
+  nextCommit: string | null;
+  logs: Array<string>;
 }
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
@@ -30,7 +33,9 @@ class MainView extends React.Component<IProps, IState> {
       this
     );
     this.handleGitOpenButtonClick = this.handleGitOpenButtonClick.bind(this);
-    this.handleGitChangesButtonClick = this.handleGitChangesButtonClick.bind(this);
+    this.handleGitChangesButtonClick = this.handleGitChangesButtonClick.bind(
+      this
+    );
     this.handleGitDiffButtonClick = this.handleGitDiffButtonClick.bind(this);
     this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
@@ -41,18 +46,29 @@ class MainView extends React.Component<IProps, IState> {
       repositoryPath: '',
       request: '',
       response: [],
-      code: '// Code'
+      code: '// Code',
+      currentCommit: null,
+      nextCommit: null,
+      logs: []
     };
 
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
       if (msg) {
         const reply = JSON.parse(msg) as IGitResult;
         if (reply.result.state === COMMAND_STATE.SUCCESS) {
-          this.setState({
-            error: '',
-            repositoryPath: reply.repository,
-            response: reply.result.data
-          });
+          if (reply.cmd === GIT_COMMANDS.LOG) {
+            this.setState({
+              error: '',
+              repositoryPath: reply.repository,
+              logs: reply.result.data
+            });
+          } else {
+            this.setState({
+              error: '',
+              repositoryPath: reply.repository,
+              response: reply.result.data
+            });
+          }
         } else {
           this.setState({
             error: reply.result.data[0],
@@ -63,7 +79,7 @@ class MainView extends React.Component<IProps, IState> {
     });
   }
 
-  componentDidMount () {
+  componentDidMount() {
     // const $mergeView = document.getElementById('mergeView');
     // if ($mergeView) {
     //   CodeMirror.MergeView($mergeView, {
@@ -95,10 +111,20 @@ class MainView extends React.Component<IProps, IState> {
           <button onClick={this.handleGitStatusButtonClick}>Git Status</button>
         </div>
         <div>
-          <button onClick={this.handleGitChangesButtonClick}>Git Changes</button>
+          <button
+            disabled={!this.state.currentCommit}
+            onClick={this.handleGitChangesButtonClick}
+          >
+            Git Changes
+          </button>
         </div>
         <div>
-          <button onClick={this.handleGitDiffButtonClick}>Git Diff</button>
+          <button
+            disabled={!this.state.currentCommit || !this.state.nextCommit}
+            onClick={this.handleGitDiffButtonClick}
+          >
+            Git Diff
+          </button>
         </div>
         <div>
           <button onClick={this.handleGitLogButtonClick}>Git Log</button>
@@ -121,6 +147,32 @@ class MainView extends React.Component<IProps, IState> {
         </ul>
         <h1>Repository: </h1>
         <p>{this.state.repositoryPath}</p>
+        <h1>Logs: </h1>
+        <ul>
+          {this.state.logs.map(commit => {
+            let background;
+            if (commit === this.state.currentCommit) {
+              background = 'red';
+            } else if (commit === this.state.nextCommit) {
+              background = 'yellow';
+            } else {
+              background = 'inherit';
+            }
+            return (
+              <li
+                style={{
+                  listStyle: 'none',
+                  cursor: 'pointer',
+                  background: background
+                }}
+                key={commit}
+                onClick={this.handleLogItemClick.bind(this, commit)}
+              >
+                {commit}
+              </li>
+            );
+          })}
+        </ul>
         <div id="code" />
       </div>
     );
@@ -159,7 +211,7 @@ class MainView extends React.Component<IProps, IState> {
   private handleGitChangesButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
     const command = {
       cmd: GIT_COMMANDS.CHANGES,
-      args: ['9f465a00a1d37ddeb3daf091b888330394c418e9'],
+      args: [this.state.currentCommit],
       cwd: process.cwd()
     };
     const request = JSON.stringify(command);
@@ -174,7 +226,7 @@ class MainView extends React.Component<IProps, IState> {
   private handleGitDiffButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
     const command = {
       cmd: GIT_COMMANDS.DIFF,
-      args: ['9f465a00a1d37ddeb3daf091b888330394c418e9', '1db283b290d9646a910eec5c7a3cdecd1b8307a7'],
+      args: [this.state.currentCommit, this.state.nextCommit],
       cwd: process.cwd()
     };
     const request = JSON.stringify(command);
@@ -211,6 +263,33 @@ class MainView extends React.Component<IProps, IState> {
     this.setState({
       code: newCode
     });
+  }
+
+  private handleLogItemClick(commit: string, e: React.MouseEvent<HTMLElement>) {
+    if (e.ctrlKey) {
+      if (commit === this.state.currentCommit) {
+        this.setState({
+          currentCommit: null
+        });
+      } else if (commit === this.state.nextCommit) {
+        this.setState({
+          nextCommit: null
+        });
+      } else if (this.state.currentCommit === null) {
+        this.setState({
+          currentCommit: commit
+        });
+      } else {
+        this.setState({
+          nextCommit: commit
+        });
+      }
+    } else {
+      this.setState({
+        currentCommit: commit,
+        nextCommit: null
+      });
+    }
   }
 }
 

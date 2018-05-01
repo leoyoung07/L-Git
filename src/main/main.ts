@@ -269,9 +269,9 @@ async function logHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
   if (repository) {
     const commit = await repository.getMasterCommit();
-    const historyCommits = await getHistory(commit);
+    const historyCommits = await getHistoryCommits(commit);
     const data = historyCommits.map(historyCommit => {
-      return historyCommit.message() + '|' + historyCommit.sha();
+      return historyCommit.sha();
     });
     reply = {
       cmd: command.cmd,
@@ -294,7 +294,7 @@ async function logHandler(command: IGitCommand): Promise<IGitResult> {
   return reply;
 }
 
-function getHistory(startCommit: Git.Commit): Promise<Array<Git.Commit>> {
+function getHistoryCommits(startCommit: Git.Commit): Promise<Array<Git.Commit>> {
   const commits: Array<Git.Commit> = [];
   // tslint:disable-next-line:no-shadowed-variable
   return new Promise((resolve, reject) => {
