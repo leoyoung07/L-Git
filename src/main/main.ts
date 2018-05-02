@@ -133,7 +133,7 @@ async function installDevExtension(extension: ExtensionReference) {
   }
 }
 
-function statusToText(status: Git.StatusFile) {
+function fileStatusToText(status: Git.StatusFile) {
   const words = [];
   if (status.isNew()) {
     words.push(GIT_STATUS.NEW);
@@ -148,6 +148,32 @@ function statusToText(status: Git.StatusFile) {
     words.push(GIT_STATUS.RENAMED);
   }
   if (status.isIgnored()) {
+    words.push(GIT_STATUS.IGNORED);
+  }
+  if (status.isDeleted()) {
+    words.push(GIT_STATUS.IGNORED);
+  }
+  return words.join(' ');
+}
+
+function patchStatusToText(status: Git.ConvenientPatch) {
+  const words = [];
+  if (status.isAdded()) {
+    words.push(GIT_STATUS.NEW);
+  }
+  if (status.isModified()) {
+    words.push(GIT_STATUS.MODIFIED);
+  }
+  if (status.isTypeChange()) {
+    words.push(GIT_STATUS.TYPECHANGE);
+  }
+  if (status.isRenamed()) {
+    words.push(GIT_STATUS.RENAMED);
+  }
+  if (status.isIgnored()) {
+    words.push(GIT_STATUS.IGNORED);
+  }
+  if (status.isDeleted()) {
     words.push(GIT_STATUS.IGNORED);
   }
   return words.join(' ');
@@ -181,7 +207,7 @@ async function statusHandler(command: IGitCommand): Promise<IGitResult> {
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: statuses.map(status => {
-          return status.path() + ' ' + statusToText(status);
+          return status.path() + ' ' + fileStatusToText(status);
         })
       }
     };
@@ -208,7 +234,7 @@ async function changesHandler(command: IGitCommand): Promise<IGitResult> {
       const diff = diffs[i];
       const patches = await diff.patches();
       patches.forEach(patch => {
-        files.push(patch.newFile().path());
+        files.push(patch.newFile().path() + ' ' + patchStatusToText(patch));
       });
     }
     reply = {
@@ -242,7 +268,7 @@ async function diffHandler(command: IGitCommand): Promise<IGitResult> {
     const diff = await Git.Diff.treeToTree(repository, tree1, tree2);
     const patches = await diff.patches();
     const files = patches.map(patch => {
-      return patch.newFile().path();
+      return patch.newFile().path() + ' ' + patchStatusToText(patch);
     });
     reply = {
       cmd: command.cmd,

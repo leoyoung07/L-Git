@@ -19,12 +19,11 @@ interface IState {
 
   openPath: string;
   repositoryPath: string;
-  request: string;
-  response: Array<string>;
   code: string;
   currentCommit: string | null;
   nextCommit: string | null;
   logs: Array<string>;
+  changes: Array<string>;
 }
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
@@ -44,37 +43,47 @@ class MainView extends React.Component<IProps, IState> {
       error: '',
       openPath: process.cwd(),
       repositoryPath: '',
-      request: '',
-      response: [],
       code: '// Code',
       currentCommit: null,
       nextCommit: null,
-      logs: []
+      logs: [],
+      changes: []
     };
 
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
       if (msg) {
         const reply = JSON.parse(msg) as IGitResult;
         if (reply.result.state === COMMAND_STATE.SUCCESS) {
-          if (reply.cmd === GIT_COMMANDS.LOG) {
+          if (reply.cmd === GIT_COMMANDS.OPEN) {
+            this.setState({
+              repositoryPath: reply.repository
+            });
+          } else if (reply.cmd === GIT_COMMANDS.LOG) {
             this.setState({
               error: '',
-              repositoryPath: reply.repository,
               logs: reply.result.data
+            });
+          } else if (
+            reply.cmd === GIT_COMMANDS.STATUS ||
+            reply.cmd === GIT_COMMANDS.CHANGES ||
+            reply.cmd === GIT_COMMANDS.DIFF
+          ) {
+            this.setState({
+              error: '',
+              changes: reply.result.data
             });
           } else {
             this.setState({
-              error: '',
-              repositoryPath: reply.repository,
-              response: reply.result.data
+              error: 'UNKNOWN COMMAND'
             });
           }
         } else {
           this.setState({
-            error: reply.result.data[0],
-            response: []
+            error: reply.result.data[0]
           });
         }
+        // tslint:disable-next-line:no-console
+        console.log(msg);
       }
     });
   }
@@ -105,17 +114,17 @@ class MainView extends React.Component<IProps, IState> {
             value={this.state.openPath}
             onChange={this.handlePathInputChange}
           />
-          <button onClick={this.handleGitOpenButtonClick}>Git Open</button>
+          <button onClick={this.handleGitOpenButtonClick}>Open</button>
         </div>
         <div>
-          <button onClick={this.handleGitStatusButtonClick}>Git Status</button>
+          <button onClick={this.handleGitStatusButtonClick}>Status</button>
         </div>
         <div>
           <button
             disabled={!this.state.currentCommit}
             onClick={this.handleGitChangesButtonClick}
           >
-            Git Changes
+            Changes
           </button>
         </div>
         <div>
@@ -123,28 +132,18 @@ class MainView extends React.Component<IProps, IState> {
             disabled={!this.state.currentCommit || !this.state.nextCommit}
             onClick={this.handleGitDiffButtonClick}
           >
-            Git Diff
+            Diff
           </button>
         </div>
         <div>
-          <button onClick={this.handleGitLogButtonClick}>Git Log</button>
+          <button onClick={this.handleGitLogButtonClick}>Log</button>
         </div>
-        <h1>Request: </h1>
-        <p>{this.state.request}</p>
         {this.state.error ? (
           <div>
             <h1>Error: </h1>
             <span>{this.state.error}</span>
           </div>
         ) : null}
-        <h1>Response: </h1>
-        <ul>
-          {this.state.response.map((line, index) => (
-            <li style={{ listStyle: 'none' }} key={index}>
-              {line}
-            </li>
-          ))}
-        </ul>
         <h1>Repository: </h1>
         <p>{this.state.repositoryPath}</p>
         <h1>Logs: </h1>
@@ -173,6 +172,14 @@ class MainView extends React.Component<IProps, IState> {
             );
           })}
         </ul>
+        <h1>Changes: </h1>
+        <ul>
+          {this.state.changes.map((change, index) => (
+            <li style={{ listStyle: 'none' }} key={index}>
+              {change}
+            </li>
+          ))}
+        </ul>
         <div id="code" />
       </div>
     );
@@ -187,9 +194,7 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      request: request,
-      response: []
+      error: ''
     });
   }
 
@@ -202,9 +207,7 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      request: request,
-      response: []
+      error: ''
     });
   }
 
@@ -217,9 +220,7 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      request: request,
-      response: []
+      error: ''
     });
   }
 
@@ -232,9 +233,7 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      request: request,
-      response: []
+      error: ''
     });
   }
 
@@ -247,9 +246,7 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      request: request,
-      response: []
+      error: ''
     });
   }
 
