@@ -24,6 +24,8 @@ interface IState {
   nextCommit: string | null;
   logs: Array<string>;
   changes: Array<string>;
+  selectedFiles: Array<string>;
+  info: string;
 }
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
@@ -37,6 +39,7 @@ class MainView extends React.Component<IProps, IState> {
     );
     this.handleGitDiffButtonClick = this.handleGitDiffButtonClick.bind(this);
     this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
+    this.handleGitStageButtonClick = this.handleGitStageButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
     this.updateCode = this.updateCode.bind(this);
     this.state = {
@@ -47,7 +50,9 @@ class MainView extends React.Component<IProps, IState> {
       currentCommit: null,
       nextCommit: null,
       logs: [],
-      changes: []
+      changes: [],
+      selectedFiles: [],
+      info: ''
     };
 
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
@@ -61,6 +66,7 @@ class MainView extends React.Component<IProps, IState> {
           } else if (reply.cmd === GIT_COMMANDS.LOG) {
             this.setState({
               error: '',
+              info: '',
               logs: reply.result.data
             });
           } else if (
@@ -70,11 +76,18 @@ class MainView extends React.Component<IProps, IState> {
           ) {
             this.setState({
               error: '',
+              info: '',
               changes: reply.result.data
+            });
+          } else if (reply.cmd === GIT_COMMANDS.STAGE) {
+            this.setState({
+              error: '',
+              info: reply.result.data[0] || ''
             });
           } else {
             this.setState({
-              error: 'UNKNOWN COMMAND'
+              error: 'UNKNOWN COMMAND',
+              info: ''
             });
           }
         } else {
@@ -136,12 +149,28 @@ class MainView extends React.Component<IProps, IState> {
           </button>
         </div>
         <div>
+          <button
+            disabled={
+              !this.state.selectedFiles || this.state.selectedFiles.length <= 0
+            }
+            onClick={this.handleGitStageButtonClick}
+          >
+            Stage
+          </button>
+        </div>
+        <div>
           <button onClick={this.handleGitLogButtonClick}>Log</button>
         </div>
         {this.state.error ? (
           <div>
             <h1>Error: </h1>
             <span>{this.state.error}</span>
+          </div>
+        ) : null}
+        {this.state.info ? (
+          <div>
+            <h1>Info: </h1>
+            <span>{this.state.info}</span>
           </div>
         ) : null}
         <h1>Repository: </h1>
@@ -174,11 +203,28 @@ class MainView extends React.Component<IProps, IState> {
         </ul>
         <h1>Changes: </h1>
         <ul>
-          {this.state.changes.map((change, index) => (
-            <li style={{ listStyle: 'none' }} key={index}>
-              {change}
-            </li>
-          ))}
+          {this.state.changes.map((change, index) => {
+            let background;
+            const file = change.split(' ')[0];
+            if (this.state.selectedFiles.indexOf(file) < 0) {
+              background = 'inherit';
+            } else {
+              background = 'cyan';
+            }
+            return (
+              <li
+                style={{
+                  listStyle: 'none',
+                  cursor: 'pointer',
+                  background: background
+                }}
+                key={index}
+                onClick={this.handleChangesItemClick.bind(this, file)}
+              >
+                {change}
+              </li>
+            );
+          })}
         </ul>
         <div id="code" />
       </div>
@@ -194,7 +240,8 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: ''
+      error: '',
+      info: ''
     });
   }
 
@@ -207,7 +254,8 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: ''
+      error: '',
+      info: ''
     });
   }
 
@@ -220,7 +268,8 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: ''
+      error: '',
+      info: ''
     });
   }
 
@@ -233,7 +282,8 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: ''
+      error: '',
+      info: ''
     });
   }
 
@@ -246,7 +296,22 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: ''
+      error: '',
+      info: ''
+    });
+  }
+
+  private handleGitStageButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    const command = {
+      cmd: GIT_COMMANDS.STAGE,
+      args: this.state.selectedFiles,
+      cwd: process.cwd()
+    };
+    const request = JSON.stringify(command);
+    ipcRenderer.send('git-command', request);
+    this.setState({
+      error: '',
+      info: ''
     });
   }
 
@@ -285,6 +350,28 @@ class MainView extends React.Component<IProps, IState> {
       this.setState({
         currentCommit: commit,
         nextCommit: null
+      });
+    }
+  }
+
+  private handleChangesItemClick(
+    change: string,
+    e: React.MouseEvent<HTMLElement>
+  ) {
+    if (e.ctrlKey) {
+      let selectedFiles = this.state.selectedFiles.slice();
+      const index = selectedFiles.indexOf(change);
+      if (index < 0) {
+        selectedFiles.push(change);
+      } else {
+        selectedFiles.splice(index, 1);
+      }
+      this.setState({
+        selectedFiles: selectedFiles
+      });
+    } else {
+      this.setState({
+        selectedFiles: [change]
       });
     }
   }

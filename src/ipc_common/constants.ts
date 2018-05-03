@@ -18,7 +18,9 @@ export enum GIT_COMMANDS {
   DIFF = 'diff',
   LOG = 'log',
   OPEN = 'open',
-  STATUS = 'status'
+  STAGE = 'stage',
+  STATUS = 'status',
+  UNSTAGE = 'unstage'
 }
 
 export enum GIT_STATUS {

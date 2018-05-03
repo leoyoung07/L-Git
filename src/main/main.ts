@@ -81,6 +81,9 @@ function createWindow() {
         case GIT_COMMANDS.LOG:
           reply = await logHandler(command);
           break;
+        case GIT_COMMANDS.STAGE:
+          reply = await stageHandler(command);
+          break;
         default:
           reply = {
             cmd: command.cmd,
@@ -305,6 +308,37 @@ async function logHandler(command: IGitCommand): Promise<IGitResult> {
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: data
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}
+
+async function stageHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const index = await repository.refreshIndex();
+    for (let i = 0; i < command.args.length; i++) {
+      const file = command.args[i];
+      await index.addByPath(file);
+    }
+    index.write();
+    const oid = await index.writeTree();
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: [oid.tostrS()]
       }
     };
   } else {
