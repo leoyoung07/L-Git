@@ -24,6 +24,7 @@ interface IState {
   nextCommit: string | null;
   logs: Array<string>;
   changes: Array<string>;
+  status: Array<string>;
   selectedFiles: Array<string>;
   info: string;
 }
@@ -51,6 +52,7 @@ class MainView extends React.Component<IProps, IState> {
       nextCommit: null,
       logs: [],
       changes: [],
+      status: [],
       selectedFiles: [],
       info: ''
     };
@@ -59,9 +61,13 @@ class MainView extends React.Component<IProps, IState> {
       if (msg) {
         const reply = JSON.parse(msg) as IGitResult;
         if (reply.result.state === COMMAND_STATE.SUCCESS) {
+          this.setState({
+            repositoryPath: reply.repository
+          });
           if (reply.cmd === GIT_COMMANDS.OPEN) {
             this.setState({
-              repositoryPath: reply.repository
+              error: '',
+              info: 'Current Repository: ' + reply.repository
             });
           } else if (reply.cmd === GIT_COMMANDS.LOG) {
             this.setState({
@@ -70,7 +76,14 @@ class MainView extends React.Component<IProps, IState> {
               logs: reply.result.data
             });
           } else if (
-            reply.cmd === GIT_COMMANDS.STATUS ||
+            reply.cmd === GIT_COMMANDS.STATUS
+          ) {
+            this.setState({
+              error: '',
+              info: '',
+              status: reply.result.data
+            });
+          } else if (
             reply.cmd === GIT_COMMANDS.CHANGES ||
             reply.cmd === GIT_COMMANDS.DIFF
           ) {
@@ -110,6 +123,7 @@ class MainView extends React.Component<IProps, IState> {
     //     origLeft: this.state.code + 'left'
     //   });
     // }
+    this.gitStatus();
   }
   render() {
     const $code = document.getElementById('code');
@@ -159,7 +173,7 @@ class MainView extends React.Component<IProps, IState> {
           </button>
         </div>
         <div>
-          <button onClick={this.handleGitLogButtonClick}>Log</button>
+          <button disabled={!this.state.repositoryPath} onClick={this.handleGitLogButtonClick}>Log</button>
         </div>
         {this.state.error ? (
           <div>
@@ -175,6 +189,31 @@ class MainView extends React.Component<IProps, IState> {
         ) : null}
         <h1>Repository: </h1>
         <p>{this.state.repositoryPath}</p>
+        <h1>Status: </h1>
+        <ul>
+          {this.state.status.map((status, index) => {
+            let background;
+            const file = status.split(' ')[0];
+            if (this.state.selectedFiles.indexOf(file) < 0) {
+              background = 'inherit';
+            } else {
+              background = 'cyan';
+            }
+            return (
+              <li
+                style={{
+                  listStyle: 'none',
+                  cursor: 'pointer',
+                  background: background
+                }}
+                key={index}
+                onClick={this.handleStatusItemClick.bind(this, file)}
+              >
+                {status}
+              </li>
+            );
+          })}
+        </ul>
         <h1>Logs: </h1>
         <ul>
           {this.state.logs.map(commit => {
@@ -204,23 +243,8 @@ class MainView extends React.Component<IProps, IState> {
         <h1>Changes: </h1>
         <ul>
           {this.state.changes.map((change, index) => {
-            let background;
-            const file = change.split(' ')[0];
-            if (this.state.selectedFiles.indexOf(file) < 0) {
-              background = 'inherit';
-            } else {
-              background = 'cyan';
-            }
             return (
-              <li
-                style={{
-                  listStyle: 'none',
-                  cursor: 'pointer',
-                  background: background
-                }}
-                key={index}
-                onClick={this.handleChangesItemClick.bind(this, file)}
-              >
+              <li style={{ listStyle: 'none' }} key={index} >
                 {change}
               </li>
             );
@@ -232,6 +256,10 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitStatusButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    this.gitStatus();
+  }
+
+  private gitStatus () {
     const command = {
       cmd: GIT_COMMANDS.STATUS,
       args: [],
@@ -354,7 +382,7 @@ class MainView extends React.Component<IProps, IState> {
     }
   }
 
-  private handleChangesItemClick(
+  private handleStatusItemClick(
     change: string,
     e: React.MouseEvent<HTMLElement>
   ) {
