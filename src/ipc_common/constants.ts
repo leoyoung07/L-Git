@@ -15,6 +15,7 @@ export interface IGitResult {
 
 export enum GIT_COMMANDS {
   CHANGES = 'changes',
+  COMPARE = 'compare',
   DIFF = 'diff',
   LOG = 'log',
   OPEN = 'open',

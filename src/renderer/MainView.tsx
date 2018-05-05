@@ -42,6 +42,7 @@ class MainView extends React.Component<IProps, IState> {
     this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
     this.handleGitStageButtonClick = this.handleGitStageButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
+    this.handleGitCompareButtonClick = this.handleGitCompareButtonClick.bind(this);
     this.updateCode = this.updateCode.bind(this);
     this.state = {
       error: '',
@@ -75,9 +76,7 @@ class MainView extends React.Component<IProps, IState> {
               info: '',
               logs: reply.result.data
             });
-          } else if (
-            reply.cmd === GIT_COMMANDS.STATUS
-          ) {
+          } else if (reply.cmd === GIT_COMMANDS.STATUS) {
             this.setState({
               error: '',
               info: '',
@@ -97,6 +96,15 @@ class MainView extends React.Component<IProps, IState> {
               error: '',
               info: reply.result.data[0] || ''
             });
+          } else if (reply.cmd === GIT_COMMANDS.COMPARE) {
+            const $mergeView = document.getElementById('mergeView');
+            if ($mergeView) {
+              $mergeView.innerHTML = '';
+              CodeMirror.MergeView($mergeView, {
+                value: reply.result.data[0],
+                orig: reply.result.data[1]
+              });
+            }
           } else {
             this.setState({
               error: 'UNKNOWN COMMAND',
@@ -173,7 +181,20 @@ class MainView extends React.Component<IProps, IState> {
           </button>
         </div>
         <div>
-          <button disabled={!this.state.repositoryPath} onClick={this.handleGitLogButtonClick}>Log</button>
+          <button
+            disabled={!this.state.repositoryPath}
+            onClick={this.handleGitLogButtonClick}
+          >
+            Log
+          </button>
+        </div>
+        <div>
+          <button
+            disabled={this.state.selectedFiles.length <= 0}
+            onClick={this.handleGitCompareButtonClick}
+          >
+            Compare
+          </button>
         </div>
         {this.state.error ? (
           <div>
@@ -244,13 +265,14 @@ class MainView extends React.Component<IProps, IState> {
         <ul>
           {this.state.changes.map((change, index) => {
             return (
-              <li style={{ listStyle: 'none' }} key={index} >
+              <li style={{ listStyle: 'none' }} key={index}>
                 {change}
               </li>
             );
           })}
         </ul>
-        <div id="code" />
+        <h1>Compare: </h1>
+        <div id="mergeView" />
       </div>
     );
   }
@@ -259,7 +281,7 @@ class MainView extends React.Component<IProps, IState> {
     this.gitStatus();
   }
 
-  private gitStatus () {
+  private gitStatus() {
     const command = {
       cmd: GIT_COMMANDS.STATUS,
       args: [],
@@ -343,6 +365,22 @@ class MainView extends React.Component<IProps, IState> {
     });
   }
 
+  private handleGitCompareButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    if (this.state.selectedFiles.length > 0) {
+      const command = {
+        cmd: GIT_COMMANDS.COMPARE,
+        args: [this.state.selectedFiles[0]],
+        cwd: process.cwd()
+      };
+      const request = JSON.stringify(command);
+      ipcRenderer.send('git-command', request);
+      this.setState({
+        error: '',
+        info: ''
+      });
+    }
+  }
+
   private handlePathInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     this.setState({
       openPath: e.target.value
@@ -383,14 +421,14 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleStatusItemClick(
-    change: string,
+    file: string,
     e: React.MouseEvent<HTMLElement>
   ) {
     if (e.ctrlKey) {
       let selectedFiles = this.state.selectedFiles.slice();
-      const index = selectedFiles.indexOf(change);
+      const index = selectedFiles.indexOf(file);
       if (index < 0) {
-        selectedFiles.push(change);
+        selectedFiles.push(file);
       } else {
         selectedFiles.splice(index, 1);
       }
@@ -399,7 +437,7 @@ class MainView extends React.Component<IProps, IState> {
       });
     } else {
       this.setState({
-        selectedFiles: [change]
+        selectedFiles: [file]
       });
     }
   }

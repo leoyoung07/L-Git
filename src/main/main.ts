@@ -7,6 +7,7 @@ import installExtension, {
   REDUX_DEVTOOLS
 } from 'electron-devtools-installer';
 import isDev from 'electron-is-dev';
+import { readFileSync } from 'fs';
 import Git from 'nodegit';
 import path from 'path';
 import url from 'url';
@@ -83,6 +84,9 @@ function createWindow() {
           break;
         case GIT_COMMANDS.STAGE:
           reply = await stageHandler(command);
+          break;
+        case GIT_COMMANDS.COMPARE:
+          reply = await compareHandler(command);
           break;
         default:
           reply = {
@@ -339,6 +343,36 @@ async function stageHandler(command: IGitCommand): Promise<IGitResult> {
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: [oid.tostrS()]
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}
+
+async function compareHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const commit = await repository.getHeadCommit();
+    const filePath = command.args[0];
+    const entry = await commit.getEntry(filePath);
+    const blob = await entry.getBlob();
+    const headContent = blob.toString();
+    const workTreeContent = readFileSync(path.resolve(repository.path(), '..', filePath)).toString('utf-8');
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: [headContent, workTreeContent]
       }
     };
   } else {
