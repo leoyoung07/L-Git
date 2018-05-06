@@ -1,7 +1,7 @@
 import CodeMirror from 'codemirror';
 import 'codemirror/addon/merge/merge';
 import 'codemirror/mode/javascript/javascript';
-import { ipcRenderer } from 'electron';
+import { ipcRenderer, remote } from 'electron';
 import React from 'react';
 import {
   COMMAND_STATE,
@@ -42,7 +42,9 @@ class MainView extends React.Component<IProps, IState> {
     this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
     this.handleGitStageButtonClick = this.handleGitStageButtonClick.bind(this);
     this.handlePathInputChange = this.handlePathInputChange.bind(this);
-    this.handleGitCompareButtonClick = this.handleGitCompareButtonClick.bind(this);
+    this.handleGitCompareButtonClick = this.handleGitCompareButtonClick.bind(
+      this
+    );
     this.updateCode = this.updateCode.bind(this);
     this.state = {
       error: '',
@@ -296,6 +298,27 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitOpenButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    remote.dialog.showOpenDialog(
+      {
+        defaultPath: this.state.openPath,
+        properties: ['openDirectory']
+      },
+      filePaths => {
+        if (filePaths.length > 0) {
+          this.setState(
+            {
+              openPath: filePaths[0]
+            },
+            () => {
+              this.gitOpen();
+            }
+          );
+        }
+      }
+    );
+  }
+
+  private gitOpen() {
     const command = {
       cmd: GIT_COMMANDS.OPEN,
       args: [this.state.openPath],
