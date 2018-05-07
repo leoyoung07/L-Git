@@ -70,56 +70,34 @@ class MainView extends React.Component<IProps, IState> {
           this.setState({
             repositoryPath: reply.repository
           });
-          if (reply.cmd === GIT_COMMANDS.OPEN) {
-            this.setState({
-              error: '',
-              info: 'Current Repository: ' + reply.repository
-            });
-          } else if (reply.cmd === GIT_COMMANDS.LOG) {
-            this.setState({
-              error: '',
-              info: '',
-              logs: reply.result.data
-            });
-          } else if (reply.cmd === GIT_COMMANDS.STATUS) {
-            this.setState({
-              error: '',
-              info: '',
-              status: reply.result.data
-            });
-          } else if (
-            reply.cmd === GIT_COMMANDS.CHANGES ||
-            reply.cmd === GIT_COMMANDS.DIFF
-          ) {
-            this.setState({
-              error: '',
-              info: '',
-              changes: reply.result.data
-            });
-          } else if (reply.cmd === GIT_COMMANDS.STAGE) {
-            this.setState({
-              error: '',
-              info: reply.result.data[0] || ''
-            });
-          } else if (reply.cmd === GIT_COMMANDS.COMPARE) {
-            const $mergeView = document.getElementById('mergeView');
-            if ($mergeView) {
-              $mergeView.innerHTML = '';
-              CodeMirror.MergeView($mergeView, {
-                value: reply.result.data[0],
-                orig: reply.result.data[1]
-              });
-            }
-          } else if (reply.cmd === GIT_COMMANDS.COMMIT) {
-            this.setState({
-              error: '',
-              info: ''
-            });
-          } else {
-            this.setState({
-              error: 'UNKNOWN COMMAND',
-              info: ''
-            });
+          switch (reply.cmd) {
+            case GIT_COMMANDS.OPEN:
+              this.handleGitOpenReply(reply);
+              break;
+            case GIT_COMMANDS.LOG:
+              this.handleGitLogReply(reply);
+              break;
+            case GIT_COMMANDS.STATUS:
+              this.handleGitStatusReply(reply);
+              break;
+            case GIT_COMMANDS.CHANGES:
+              this.handleGitChangesReply(reply);
+              break;
+            case GIT_COMMANDS.DIFF:
+              this.handleGitDiffReply(reply);
+              break;
+            case GIT_COMMANDS.STAGE:
+              this.handleGitStageReply(reply);
+              break;
+            case GIT_COMMANDS.COMPARE:
+              this.handleGitCompareReply(reply);
+              break;
+            case GIT_COMMANDS.COMMIT:
+              this.handleGitCommitReply(reply);
+              break;
+            default:
+              this.handleUnknownReply(reply);
+              break;
           }
         } else {
           this.setState({
@@ -481,6 +459,80 @@ class MainView extends React.Component<IProps, IState> {
         selectedFiles: [file]
       });
     }
+  }
+
+  private handleGitOpenReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: 'Current Repository: ' + reply.repository
+    });
+    this.gitStatus();
+  }
+
+  private handleGitStatusReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: '',
+      status: reply.result.data
+    });
+  }
+
+  private handleGitChangesReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: '',
+      changes: reply.result.data
+    });
+  }
+
+  private handleGitDiffReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: '',
+      changes: reply.result.data
+    });
+  }
+
+  private handleGitLogReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: '',
+      logs: reply.result.data
+    });
+  }
+
+  private handleGitStageReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: reply.result.data[0] || ''
+    });
+    this.gitStatus();
+  }
+
+  private handleGitCompareReply(reply: IGitResult) {
+    const $mergeView = document.getElementById('mergeView');
+    if ($mergeView) {
+      $mergeView.innerHTML = '';
+      CodeMirror.MergeView($mergeView, {
+        value: reply.result.data[0],
+        orig: reply.result.data[1]
+      });
+    }
+  }
+
+  private handleGitCommitReply(reply: IGitResult) {
+    this.setState({
+      error: '',
+      info: ''
+    });
+    this.gitStatus();
+  }
+
+  private handleUnknownReply(reply: IGitResult) {
+    this.setState({
+      error: 'UNKNOWN COMMAND',
+      info: ''
+    });
   }
 }
 
