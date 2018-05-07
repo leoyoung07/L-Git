@@ -313,6 +313,10 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitChangesButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    this.gitChanges();
+  }
+
+  private gitChanges() {
     const command = {
       cmd: GIT_COMMANDS.CHANGES,
       args: [this.state.currentCommit],
@@ -327,6 +331,10 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitDiffButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    this.gitDiff();
+  }
+
+  private gitDiff() {
     const command = {
       cmd: GIT_COMMANDS.DIFF,
       args: [this.state.currentCommit, this.state.nextCommit],
@@ -425,16 +433,22 @@ class MainView extends React.Component<IProps, IState> {
       } else if (this.state.currentCommit === null) {
         this.setState({
           currentCommit: commit
+        }, () => {
+          this.gitChanges();
         });
       } else {
         this.setState({
           nextCommit: commit
+        }, () => {
+          this.gitDiff();
         });
       }
     } else {
       this.setState({
         currentCommit: commit,
         nextCommit: null
+      }, () => {
+        this.gitChanges();
       });
     }
   }
