@@ -88,6 +88,9 @@ function createWindow() {
         case GIT_COMMANDS.COMPARE:
           reply = await compareHandler(command);
           break;
+        case GIT_COMMANDS.COMMIT:
+          reply = await commitHandler(command);
+          break;
         default:
           reply = {
             cmd: command.cmd,
@@ -373,6 +376,35 @@ async function compareHandler(command: IGitCommand): Promise<IGitResult> {
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: [headContent, workTreeContent]
+      }
+    };
+  } else {
+    reply = {
+      cmd: command.cmd,
+      repository: '',
+      result: {
+        state: COMMAND_STATE.FAIL,
+        data: ['Please open a git repository first.']
+      }
+    };
+  }
+  return reply;
+}
+
+async function commitHandler(command: IGitCommand): Promise<IGitResult> {
+  let reply: IGitResult;
+  if (repository) {
+    const head = await repository.getHeadCommit();
+    const signature = repository.defaultSignature();
+    const index = await repository.refreshIndex();
+    const oid = await index.writeTree();
+    const commitId = await repository.createCommit('HEAD', signature, signature, command.args[0], oid, [head]);
+    reply = {
+      cmd: command.cmd,
+      repository: repository.path(),
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: [commitId.tostrS()]
       }
     };
   } else {

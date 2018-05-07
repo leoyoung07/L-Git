@@ -19,7 +19,6 @@ interface IState {
 
   openPath: string;
   repositoryPath: string;
-  code: string;
   currentCommit: string | null;
   nextCommit: string | null;
   logs: Array<string>;
@@ -27,6 +26,7 @@ interface IState {
   status: Array<string>;
   selectedFiles: Array<string>;
   info: string;
+  commitMsg: string;
 }
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
@@ -45,19 +45,22 @@ class MainView extends React.Component<IProps, IState> {
     this.handleGitCompareButtonClick = this.handleGitCompareButtonClick.bind(
       this
     );
-    this.updateCode = this.updateCode.bind(this);
+    this.handleGitCommitButtonClick = this.handleGitCommitButtonClick.bind(
+      this
+    );
+    this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(this);
     this.state = {
       error: '',
       openPath: process.cwd(),
       repositoryPath: '',
-      code: '// Code',
       currentCommit: null,
       nextCommit: null,
       logs: [],
       changes: [],
       status: [],
       selectedFiles: [],
-      info: ''
+      info: '',
+      commitMsg: ''
     };
 
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
@@ -107,6 +110,11 @@ class MainView extends React.Component<IProps, IState> {
                 orig: reply.result.data[1]
               });
             }
+          } else if (reply.cmd === GIT_COMMANDS.COMMIT) {
+            this.setState({
+              error: '',
+              info: ''
+            });
           } else {
             this.setState({
               error: 'UNKNOWN COMMAND',
@@ -125,24 +133,9 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   componentDidMount() {
-    // const $mergeView = document.getElementById('mergeView');
-    // if ($mergeView) {
-    //   CodeMirror.MergeView($mergeView, {
-    //     value: this.state.code,
-    //     orig: this.state.code + '...',
-    //     origLeft: this.state.code + 'left'
-    //   });
-    // }
     this.gitStatus();
   }
   render() {
-    const $code = document.getElementById('code');
-    if ($code) {
-      $code.innerHTML = '';
-      CodeMirror($code, {
-        value: this.state.code
-      });
-    }
     return (
       <div>
         <div>
@@ -196,6 +189,15 @@ class MainView extends React.Component<IProps, IState> {
             onClick={this.handleGitCompareButtonClick}
           >
             Compare
+          </button>
+        </div>
+        <div>
+          <input type="text" value={this.state.commitMsg} onChange={this.handleCommitMsgInputChange}/>
+          <button
+            disabled={!this.state.commitMsg}
+            onClick={this.handleGitCommitButtonClick}
+          >
+            Commit
           </button>
         </div>
         {this.state.error ? (
@@ -404,15 +406,31 @@ class MainView extends React.Component<IProps, IState> {
     }
   }
 
+  private handleGitCommitButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+    if (this.state.commitMsg) {
+      const command = {
+        cmd: GIT_COMMANDS.COMMIT,
+        args: [this.state.commitMsg],
+        cwd: process.cwd()
+      };
+      const request = JSON.stringify(command);
+      ipcRenderer.send('git-command', request);
+      this.setState({
+        error: '',
+        info: ''
+      });
+    }
+  }
+
   private handlePathInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     this.setState({
       openPath: e.target.value
     });
   }
 
-  private updateCode(newCode: string) {
+  private handleCommitMsgInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     this.setState({
-      code: newCode
+      commitMsg: e.target.value
     });
   }
 
