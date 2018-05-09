@@ -3,8 +3,6 @@ import ReactDom from 'react-dom';
 import MainView from './MainView';
 
 ReactDom.render(
-  <div>
-    <MainView />
-  </div>,
+  <MainView />,
   document.getElementById('root')
 );
