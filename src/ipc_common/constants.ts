@@ -20,6 +20,11 @@ export interface IGitCommit {
   timestamp: number;
 }
 
+export interface IGitStatus {
+  file: string;
+  status: GIT_STATUS;
+}
+
 export enum GIT_COMMANDS {
   CHANGES = 'changes',
   COMMIT = 'commit',

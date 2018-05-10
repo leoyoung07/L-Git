@@ -217,7 +217,10 @@ async function statusHandler(command: IGitCommand): Promise<IGitResult> {
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: statuses.map(status => {
-          return status.path() + ' ' + fileStatusToText(status);
+          return JSON.stringify({
+            file: status.path(),
+            status: fileStatusToText(status)
+          });
         })
       }
     };

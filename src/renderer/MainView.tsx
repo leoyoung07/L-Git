@@ -9,7 +9,8 @@ import {
   GIT_STATUS,
   IGitCommand,
   IGitCommit,
-  IGitResult
+  IGitResult,
+  IGitStatus
 } from '../ipc_common/constants';
 import './MainView.scss';
 
@@ -38,6 +39,12 @@ interface ILogViewProps {
     commit: string,
     e: React.MouseEvent<HTMLElement>
   ) => void;
+}
+
+interface IStatusViewProps {
+  status: Array<string>;
+  selectedFiles: Array<string>;
+  handleStatusItemClick: (file: string, e: React.MouseEvent<HTMLElement>) => void;
 }
 
 const LogView = (props: ILogViewProps) => {
@@ -83,6 +90,45 @@ const LogView = (props: ILogViewProps) => {
     </table>
   );
 };
+
+const StatusView = (props: IStatusViewProps) => {
+  return (
+    <ul className="changes-list">
+    {props.status.map((fileStatusStr, index) => {
+      let background;
+      const fileStatus = JSON.parse(fileStatusStr) as IGitStatus;
+      const file = fileStatus.file;
+      if (props.selectedFiles.indexOf(file) < 0) {
+        background = 'inherit';
+      } else {
+        background = 'cyan';
+      }
+      return (
+        <li
+          style={{
+            listStyle: 'none',
+            cursor: 'pointer',
+            background: background,
+            display: 'flex',
+            flexWrap: 'nowrap',
+            justifyContent: 'space-between'
+          }}
+          key={index}
+          onClick={(e) => { props.handleStatusItemClick(file, e); }}
+        >
+          <span>
+            {file}
+          </span>
+          <span>
+            {fileStatus.status}
+          </span>
+        </li>
+      );
+    })}
+  </ul>
+  );
+};
+
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
     super(props);
@@ -238,30 +284,11 @@ class MainView extends React.Component<IProps, IState> {
           </div>
           <div className="grid-item-4">
             {this.state.status.length > 0 ? (
-              <ul className="changes-list">
-                {this.state.status.map((status, index) => {
-                  let background;
-                  const file = status.split(' ')[0];
-                  if (this.state.selectedFiles.indexOf(file) < 0) {
-                    background = 'inherit';
-                  } else {
-                    background = 'cyan';
-                  }
-                  return (
-                    <li
-                      style={{
-                        listStyle: 'none',
-                        cursor: 'pointer',
-                        background: background
-                      }}
-                      key={index}
-                      onClick={this.handleStatusItemClick.bind(this, file)}
-                    >
-                      {status}
-                    </li>
-                  );
-                })}
-              </ul>
+              <StatusView
+                status={this.state.status}
+                selectedFiles={this.state.selectedFiles}
+                handleStatusItemClick={this.handleStatusItemClick}
+              />
             ) : null}
             {this.state.changes.length > 0 ? (
               <ul className="changes-list">
