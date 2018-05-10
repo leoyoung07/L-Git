@@ -201,42 +201,44 @@ class MainView extends React.Component<IProps, IState> {
           </ul>
         </div>
         <div className="grid-item-4">
-          <ul>
-            {this.state.status.map((status, index) => {
-              let background;
-              const file = status.split(' ')[0];
-              if (this.state.selectedFiles.indexOf(file) < 0) {
-                background = 'inherit';
-              } else {
-                background = 'cyan';
-              }
-              return (
-                <li
-                  style={{
-                    listStyle: 'none',
-                    cursor: 'pointer',
-                    background: background
-                  }}
-                  key={index}
-                  onClick={this.handleStatusItemClick.bind(this, file)}
-                >
-                  {status}
-                </li>
-              );
-            })}
-          </ul>
-          <ul>
-            {this.state.changes.map((change, index) => {
-              return (
-                <li style={{ listStyle: 'none' }} key={index}>
-                  {change}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <div className="grid-item-5">
-          <div id="mergeView" />
+          {this.state.status.length > 0 ? (
+            <ul className="changes-list">
+              {this.state.status.map((status, index) => {
+                let background;
+                const file = status.split(' ')[0];
+                if (this.state.selectedFiles.indexOf(file) < 0) {
+                  background = 'inherit';
+                } else {
+                  background = 'cyan';
+                }
+                return (
+                  <li
+                    style={{
+                      listStyle: 'none',
+                      cursor: 'pointer',
+                      background: background
+                    }}
+                    key={index}
+                    onClick={this.handleStatusItemClick.bind(this, file)}
+                  >
+                    {status}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          {this.state.changes.length > 0 ? (
+            <ul className="changes-list">
+              {this.state.changes.map((change, index) => {
+                return (
+                  <li style={{ listStyle: 'none' }} key={index}>
+                    {change}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          <div id="compareView" className="compare-view"/>
         </div>
       </div>
     );
@@ -517,10 +519,10 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitCompareReply(reply: IGitResult) {
-    const $mergeView = document.getElementById('mergeView');
-    if ($mergeView) {
-      $mergeView.innerHTML = '';
-      CodeMirror.MergeView($mergeView, {
+    const $compareView = document.getElementById('compareView');
+    if ($compareView) {
+      $compareView.innerHTML = '';
+      CodeMirror.MergeView($compareView, {
         value: reply.result.data[0],
         orig: reply.result.data[1]
       });
