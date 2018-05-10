@@ -307,7 +307,12 @@ async function logHandler(command: IGitCommand): Promise<IGitResult> {
     const commit = await repository.getMasterCommit();
     const historyCommits = await getHistoryCommits(commit);
     const data = historyCommits.map(historyCommit => {
-      return historyCommit.sha();
+      return JSON.stringify({
+        sha: historyCommit.sha(),
+        msg: historyCommit.message(),
+        author: historyCommit.author().name(),
+        timestamp: historyCommit.date().getTime()
+      });
     });
     reply = {
       cmd: command.cmd,

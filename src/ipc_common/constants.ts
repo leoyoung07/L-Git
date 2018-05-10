@@ -13,6 +13,13 @@ export interface IGitResult {
   };
 }
 
+export interface IGitCommit {
+  sha: string;
+  msg: string;
+  author: string;
+  timestamp: number;
+}
+
 export enum GIT_COMMANDS {
   CHANGES = 'changes',
   COMMIT = 'commit',

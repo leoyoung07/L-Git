@@ -1,12 +1,14 @@
 import CodeMirror from 'codemirror';
 import 'codemirror/addon/merge/merge';
 import { ipcRenderer, remote } from 'electron';
+import moment from 'moment';
 import React from 'react';
 import {
   COMMAND_STATE,
   GIT_COMMANDS,
   GIT_STATUS,
   IGitCommand,
+  IGitCommit,
   IGitResult
 } from '../ipc_common/constants';
 import './MainView.scss';
@@ -26,6 +28,61 @@ interface IState {
   info: string;
   commitMsg: string;
 }
+
+interface ILogViewProps {
+  currentCommit: string | null;
+  nextCommit: string | null;
+  logs: Array<string>;
+
+  handleLogItemClick: (
+    commit: string,
+    e: React.MouseEvent<HTMLElement>
+  ) => void;
+}
+
+const LogView = (props: ILogViewProps) => {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Message</th>
+          <th>Author</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {props.logs.map(log => {
+          let background;
+          const commit = JSON.parse(log) as IGitCommit;
+          if (commit.sha === props.currentCommit) {
+            background = 'red';
+          } else if (commit.sha === props.nextCommit) {
+            background = 'yellow';
+          } else {
+            background = 'inherit';
+          }
+          return (
+            <tr
+              style={{
+                listStyle: 'none',
+                cursor: 'pointer',
+                background: background
+              }}
+              key={commit.sha}
+              onClick={e => {
+                props.handleLogItemClick(commit.sha, e);
+              }}
+            >
+              <td>{commit.msg}</td>
+              <td>{commit.author}</td>
+              <td>{moment(commit.timestamp).format('YYYY-MM-DD HH:mm:ss')}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+};
 class MainView extends React.Component<IProps, IState> {
   constructor(props: IProps) {
     super(props);
@@ -45,7 +102,11 @@ class MainView extends React.Component<IProps, IState> {
     this.handleGitCommitButtonClick = this.handleGitCommitButtonClick.bind(
       this
     );
-    this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(this);
+    this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(
+      this
+    );
+    this.handleLogItemClick = this.handleLogItemClick.bind(this);
+    this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
     this.state = {
       error: '',
       repositoryName: '',
@@ -114,54 +175,116 @@ class MainView extends React.Component<IProps, IState> {
   }
   render() {
     return (
-      <div className="grid">
-        <div className="grid-item-1">
-          <button onClick={this.handleGitOpenButtonClick}>Open</button>
-          <span>{this.state.repositoryName}</span>
+      <div className="main-view__wrapper">
+        <div className="grid">
+          <div className="grid-item-1">
+            <button onClick={this.handleGitOpenButtonClick}>Open</button>
+            <span>{this.state.repositoryName}</span>
+          </div>
+          <div className="grid-item-2">
+            <button onClick={this.handleGitStatusButtonClick}>Status</button>
+            <button
+              disabled={!this.state.currentCommit}
+              onClick={this.handleGitChangesButtonClick}
+            >
+              Changes
+            </button>
+            <button
+              disabled={!this.state.currentCommit || !this.state.nextCommit}
+              onClick={this.handleGitDiffButtonClick}
+            >
+              Diff
+            </button>
+            <button
+              disabled={
+                !this.state.selectedFiles ||
+                this.state.selectedFiles.length <= 0
+              }
+              onClick={this.handleGitStageButtonClick}
+            >
+              Stage
+            </button>
+            <button
+              disabled={!this.state.repositoryPath}
+              onClick={this.handleGitLogButtonClick}
+            >
+              Log
+            </button>
+            <button
+              disabled={this.state.selectedFiles.length <= 0}
+              onClick={this.handleGitCompareButtonClick}
+            >
+              Compare
+            </button>
+            <input
+              type="text"
+              value={this.state.commitMsg}
+              onChange={this.handleCommitMsgInputChange}
+            />
+            <button
+              disabled={!this.state.commitMsg}
+              onClick={this.handleGitCommitButtonClick}
+            >
+              Commit
+            </button>
+          </div>
+          <div className="grid-item-3">
+            <LogView
+              currentCommit={this.state.currentCommit}
+              nextCommit={this.state.nextCommit}
+              logs={this.state.logs}
+              handleLogItemClick={this.handleLogItemClick}
+            />
+          </div>
+          <div className="grid-item-4">
+            {this.state.status.length > 0 ? (
+              <ul className="changes-list">
+                {this.state.status.map((status, index) => {
+                  let background;
+                  const file = status.split(' ')[0];
+                  if (this.state.selectedFiles.indexOf(file) < 0) {
+                    background = 'inherit';
+                  } else {
+                    background = 'cyan';
+                  }
+                  return (
+                    <li
+                      style={{
+                        listStyle: 'none',
+                        cursor: 'pointer',
+                        background: background
+                      }}
+                      key={index}
+                      onClick={this.handleStatusItemClick.bind(this, file)}
+                    >
+                      {status}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            {this.state.changes.length > 0 ? (
+              <ul className="changes-list">
+                {this.state.changes.map((change, index) => {
+                  return (
+                    <li style={{ listStyle: 'none' }} key={index}>
+                      {change}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            <div id="compareView" className="compare-view" />
+          </div>
         </div>
-        <div className="grid-item-2">
-          <button onClick={this.handleGitStatusButtonClick}>Status</button>
-          <button
-            disabled={!this.state.currentCommit}
-            onClick={this.handleGitChangesButtonClick}
-          >
-            Changes
-          </button>
-          <button
-            disabled={!this.state.currentCommit || !this.state.nextCommit}
-            onClick={this.handleGitDiffButtonClick}
-          >
-            Diff
-          </button>
-          <button
-            disabled={
-              !this.state.selectedFiles || this.state.selectedFiles.length <= 0
-            }
-            onClick={this.handleGitStageButtonClick}
-          >
-            Stage
-          </button>
-          <button
-            disabled={!this.state.repositoryPath}
-            onClick={this.handleGitLogButtonClick}
-          >
-            Log
-          </button>
-          <button
-            disabled={this.state.selectedFiles.length <= 0}
-            onClick={this.handleGitCompareButtonClick}
-          >
-            Compare
-          </button>
-          <input type="text" value={this.state.commitMsg} onChange={this.handleCommitMsgInputChange}/>
-          <button
-            disabled={!this.state.commitMsg}
-            onClick={this.handleGitCommitButtonClick}
-          >
-            Commit
-          </button>
-        </div>
-        <div className="grid-item-3">
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
           {this.state.error ? (
             <div>
               <h1>Error: </h1>
@@ -174,71 +297,6 @@ class MainView extends React.Component<IProps, IState> {
               <span>{this.state.info}</span>
             </div>
           ) : null}
-          <ul>
-            {this.state.logs.map(commit => {
-              let background;
-              if (commit === this.state.currentCommit) {
-                background = 'red';
-              } else if (commit === this.state.nextCommit) {
-                background = 'yellow';
-              } else {
-                background = 'inherit';
-              }
-              return (
-                <li
-                  style={{
-                    listStyle: 'none',
-                    cursor: 'pointer',
-                    background: background
-                  }}
-                  key={commit}
-                  onClick={this.handleLogItemClick.bind(this, commit)}
-                >
-                  {commit}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <div className="grid-item-4">
-          {this.state.status.length > 0 ? (
-            <ul className="changes-list">
-              {this.state.status.map((status, index) => {
-                let background;
-                const file = status.split(' ')[0];
-                if (this.state.selectedFiles.indexOf(file) < 0) {
-                  background = 'inherit';
-                } else {
-                  background = 'cyan';
-                }
-                return (
-                  <li
-                    style={{
-                      listStyle: 'none',
-                      cursor: 'pointer',
-                      background: background
-                    }}
-                    key={index}
-                    onClick={this.handleStatusItemClick.bind(this, file)}
-                  >
-                    {status}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-          {this.state.changes.length > 0 ? (
-            <ul className="changes-list">
-              {this.state.changes.map((change, index) => {
-                return (
-                  <li style={{ listStyle: 'none' }} key={index}>
-                    {change}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-          <div id="compareView" className="compare-view"/>
         </div>
       </div>
     );
@@ -423,25 +481,34 @@ class MainView extends React.Component<IProps, IState> {
           nextCommit: null
         });
       } else if (this.state.currentCommit === null) {
-        this.setState({
-          currentCommit: commit
-        }, () => {
-          this.gitChanges();
-        });
+        this.setState(
+          {
+            currentCommit: commit
+          },
+          () => {
+            this.gitChanges();
+          }
+        );
       } else {
-        this.setState({
-          nextCommit: commit
-        }, () => {
-          this.gitDiff();
-        });
+        this.setState(
+          {
+            nextCommit: commit
+          },
+          () => {
+            this.gitDiff();
+          }
+        );
       }
     } else {
-      this.setState({
-        currentCommit: commit,
-        nextCommit: null
-      }, () => {
-        this.gitChanges();
-      });
+      this.setState(
+        {
+          currentCommit: commit,
+          nextCommit: null
+        },
+        () => {
+          this.gitChanges();
+        }
+      );
     }
   }
 
@@ -461,11 +528,14 @@ class MainView extends React.Component<IProps, IState> {
         selectedFiles: selectedFiles
       });
     } else {
-      this.setState({
-        selectedFiles: [file]
-      }, () => {
-        this.gitCompare();
-      });
+      this.setState(
+        {
+          selectedFiles: [file]
+        },
+        () => {
+          this.gitCompare();
+        }
+      );
     }
   }
 

@@ -58,6 +58,7 @@
     "codemirror": "^5.37.0",
     "diff-match-patch": "^1.0.0",
     "electron-is-dev": "^0.3.0",
+    "moment": "^2.22.1",
     "nodegit": "^0.22.0",
     "react": "^16.3.1",
     "react-dom": "^16.3.1"
