@@ -41,10 +41,10 @@ interface ILogViewProps {
   ) => void;
 }
 
-interface IStatusViewProps {
-  status: Array<string>;
+interface IChangesViewProps {
+  changes: Array<string>;
   selectedFiles: Array<string>;
-  handleStatusItemClick: (file: string, e: React.MouseEvent<HTMLElement>) => void;
+  handleChangesItemClick: (file: string, e: React.MouseEvent<HTMLElement>) => void;
 }
 
 const LogView = (props: ILogViewProps) => {
@@ -91,10 +91,10 @@ const LogView = (props: ILogViewProps) => {
   );
 };
 
-const StatusView = (props: IStatusViewProps) => {
+const ChangesView = (props: IChangesViewProps) => {
   return (
     <ul className="changes-list">
-    {props.status.map((fileStatusStr, index) => {
+    {props.changes.map((fileStatusStr, index) => {
       let background;
       const fileStatus = JSON.parse(fileStatusStr) as IGitStatus;
       const file = fileStatus.file;
@@ -114,7 +114,7 @@ const StatusView = (props: IStatusViewProps) => {
             justifyContent: 'space-between'
           }}
           key={index}
-          onClick={(e) => { props.handleStatusItemClick(file, e); }}
+          onClick={(e) => { props.handleChangesItemClick(file, e); }}
         >
           <span>
             {file}
@@ -153,6 +153,7 @@ class MainView extends React.Component<IProps, IState> {
     );
     this.handleLogItemClick = this.handleLogItemClick.bind(this);
     this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
+    this.handleChangesItemClick = this.handleChangesItemClick.bind(this);
     this.state = {
       error: '',
       repositoryName: '',
@@ -284,22 +285,18 @@ class MainView extends React.Component<IProps, IState> {
           </div>
           <div className="grid-item-4">
             {this.state.status.length > 0 ? (
-              <StatusView
-                status={this.state.status}
+              <ChangesView
+                changes={this.state.status}
                 selectedFiles={this.state.selectedFiles}
-                handleStatusItemClick={this.handleStatusItemClick}
+                handleChangesItemClick={this.handleStatusItemClick}
               />
             ) : null}
             {this.state.changes.length > 0 ? (
-              <ul className="changes-list">
-                {this.state.changes.map((change, index) => {
-                  return (
-                    <li style={{ listStyle: 'none' }} key={index}>
-                      {change}
-                    </li>
-                  );
-                })}
-              </ul>
+              <ChangesView
+                changes={this.state.changes}
+                selectedFiles={this.state.selectedFiles}
+                handleChangesItemClick={this.handleChangesItemClick}
+              />
             ) : null}
             <div id="compareView" className="compare-view" />
           </div>
@@ -459,11 +456,11 @@ class MainView extends React.Component<IProps, IState> {
     this.gitCompare();
   }
 
-  private gitCompare() {
+  private gitCompare(newCommit?: string, oldCommit?: string) {
     if (this.state.selectedFiles.length > 0) {
       const command = {
         cmd: GIT_COMMANDS.COMPARE,
-        args: [this.state.selectedFiles[0]],
+        args: [this.state.selectedFiles[0], newCommit || '', oldCommit || ''],
         cwd: process.cwd()
       };
       const request = JSON.stringify(command);
@@ -561,6 +558,36 @@ class MainView extends React.Component<IProps, IState> {
         },
         () => {
           this.gitCompare();
+        }
+      );
+    }
+  }
+
+  private handleChangesItemClick(
+    file: string,
+    e: React.MouseEvent<HTMLElement>
+  ) {
+    const newCommitSha = this.state.currentCommit;
+    if (newCommitSha) {
+      const newCommitIndex =  this.state.logs.findIndex(value => {
+        const commit = JSON.parse(value) as IGitCommit;
+        return commit.sha === newCommitSha;
+      });
+      let oldCommitStr: string | undefined;
+      if (newCommitIndex >= 0) {
+        oldCommitStr = this.state.logs.find((value, index) => index === (newCommitIndex + 1));
+      }
+      let oldCommitSha: string | undefined;
+      if (oldCommitStr) {
+        const oldCommit = JSON.parse(oldCommitStr) as IGitCommit;
+        oldCommitSha = oldCommit.sha;
+      }
+      this.setState(
+        {
+          selectedFiles: [file]
+        },
+        () => {
+          this.gitCompare(newCommitSha, oldCommitSha);
         }
       );
     }

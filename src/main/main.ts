@@ -247,7 +247,10 @@ async function changesHandler(command: IGitCommand): Promise<IGitResult> {
       const diff = diffs[i];
       const patches = await diff.patches();
       patches.forEach(patch => {
-        files.push(patch.newFile().path() + ' ' + patchStatusToText(patch));
+        files.push(JSON.stringify({
+          file: patch.newFile().path(),
+          status: patchStatusToText(patch)
+        }));
       });
     }
     reply = {
@@ -372,18 +375,30 @@ async function stageHandler(command: IGitCommand): Promise<IGitResult> {
 async function compareHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
   if (repository) {
-    const commit = await repository.getHeadCommit();
     const filePath = command.args[0];
-    const entry = await commit.getEntry(filePath);
-    const blob = await entry.getBlob();
-    const headContent = blob.toString();
-    const workTreeContent = readFileSync(path.resolve(repository.path(), '..', filePath)).toString('utf-8');
+    const newCommitSha = command.args[1];
+    const oldCommitSha = command.args[2];
+    let oldContent: string;
+    let newContent: string;
+    if (newCommitSha) {
+      newContent = await getFileContentAtCommit(filePath, await repository.getCommit(newCommitSha));
+      if (oldCommitSha) {
+        oldContent = await getFileContentAtCommit(filePath, await repository.getCommit(oldCommitSha));
+      } else {
+        oldContent = '';
+      }
+    } else {
+      const commit = await repository.getHeadCommit();
+      oldContent = await getFileContentAtCommit(filePath, commit);
+      newContent = readFileSync(path.resolve(repository.path(), '..', filePath)).toString('utf-8');
+    }
+
     reply = {
       cmd: command.cmd,
       repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
-        data: [headContent, workTreeContent]
+        data: [oldContent, newContent]
       }
     };
   } else {
@@ -397,6 +412,12 @@ async function compareHandler(command: IGitCommand): Promise<IGitResult> {
     };
   }
   return reply;
+}
+
+async function getFileContentAtCommit(filePath: string, commit: Git.Commit) {
+  const entry = await commit.getEntry(filePath);
+  const blob = await entry.getBlob();
+  return blob.toString();
 }
 
 async function commitHandler(command: IGitCommand): Promise<IGitResult> {
