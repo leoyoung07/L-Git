@@ -17,7 +17,6 @@ import './MainView.scss';
 interface IProps {}
 
 interface IState {
-  error: string;
   repositoryName: string;
   repositoryPath: string;
   currentCommit: string | null;
@@ -26,8 +25,9 @@ interface IState {
   changes: Array<string>;
   status: Array<string>;
   selectedFiles: Array<string>;
-  info: string;
   commitMsg: string;
+  popupMsg: string;
+  isPopupVisible: boolean;
 }
 
 interface ILogViewProps {
@@ -151,11 +151,11 @@ class MainView extends React.Component<IProps, IState> {
     this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(
       this
     );
+    this.handlePopupCloseClick = this.handlePopupCloseClick.bind(this);
     this.handleLogItemClick = this.handleLogItemClick.bind(this);
     this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
     this.handleChangesItemClick = this.handleChangesItemClick.bind(this);
     this.state = {
-      error: '',
       repositoryName: '',
       repositoryPath: '',
       currentCommit: null,
@@ -164,8 +164,9 @@ class MainView extends React.Component<IProps, IState> {
       changes: [],
       status: [],
       selectedFiles: [],
-      info: '',
-      commitMsg: ''
+      commitMsg: '',
+      popupMsg: '',
+      isPopupVisible: false
     };
 
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
@@ -207,7 +208,8 @@ class MainView extends React.Component<IProps, IState> {
           }
         } else {
           this.setState({
-            error: reply.result.data[0]
+            popupMsg: reply.result.data[0],
+            isPopupVisible: true
           });
         }
         // tslint:disable-next-line:no-console
@@ -301,27 +303,19 @@ class MainView extends React.Component<IProps, IState> {
             <div id="compareView" className="compare-view" />
           </div>
         </div>
-        <div
-          style={{
-            position: 'fixed',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)'
-          }}
-        >
-          {this.state.error ? (
-            <div>
-              <h1>Error: </h1>
-              <span>{this.state.error}</span>
+          {this.state.isPopupVisible ? (
+          <div className="popup__mask">
+            <div className="popup__content">
+              <span
+                className="popup__close"
+                onClick={this.handlePopupCloseClick}
+              >
+              X
+              </span>
+              <span>{this.state.popupMsg}</span>
             </div>
+          </div>
           ) : null}
-          {this.state.info ? (
-            <div>
-              <h1>Info: </h1>
-              <span>{this.state.info}</span>
-            </div>
-          ) : null}
-        </div>
       </div>
     );
   }
@@ -347,8 +341,6 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      info: '',
       status: [],
       changes: []
     });
@@ -361,7 +353,7 @@ class MainView extends React.Component<IProps, IState> {
         properties: ['openDirectory']
       },
       filePaths => {
-        if (filePaths.length > 0) {
+        if (filePaths && filePaths.length > 0) {
           this.gitOpen(filePaths[0]);
         }
       }
@@ -376,10 +368,6 @@ class MainView extends React.Component<IProps, IState> {
     };
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
-    this.setState({
-      error: '',
-      info: ''
-    });
   }
 
   private handleGitChangesButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
@@ -395,8 +383,6 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      error: '',
-      info: '',
       status: [],
       changes: []
     });
@@ -414,10 +400,6 @@ class MainView extends React.Component<IProps, IState> {
     };
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
-    this.setState({
-      error: '',
-      info: ''
-    });
   }
 
   private handleGitLogButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
@@ -432,10 +414,6 @@ class MainView extends React.Component<IProps, IState> {
     };
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
-    this.setState({
-      error: '',
-      info: ''
-    });
   }
 
   private handleGitStageButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
@@ -446,10 +424,6 @@ class MainView extends React.Component<IProps, IState> {
     };
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
-    this.setState({
-      error: '',
-      info: ''
-    });
   }
 
   private handleGitCompareButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
@@ -465,10 +439,6 @@ class MainView extends React.Component<IProps, IState> {
       };
       const request = JSON.stringify(command);
       ipcRenderer.send('git-command', request);
-      this.setState({
-        error: '',
-        info: ''
-      });
     }
   }
 
@@ -481,10 +451,6 @@ class MainView extends React.Component<IProps, IState> {
       };
       const request = JSON.stringify(command);
       ipcRenderer.send('git-command', request);
-      this.setState({
-        error: '',
-        info: ''
-      });
     }
   }
 
@@ -594,51 +560,35 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitOpenReply(reply: IGitResult) {
-    this.setState({
-      error: '',
-      info: 'Current Repository: ' + reply.repository
-    });
     this.gitStatus();
     this.gitLog();
   }
 
   private handleGitStatusReply(reply: IGitResult) {
     this.setState({
-      error: '',
-      info: '',
       status: reply.result.data
     });
   }
 
   private handleGitChangesReply(reply: IGitResult) {
     this.setState({
-      error: '',
-      info: '',
       changes: reply.result.data
     });
   }
 
   private handleGitDiffReply(reply: IGitResult) {
     this.setState({
-      error: '',
-      info: '',
       changes: reply.result.data
     });
   }
 
   private handleGitLogReply(reply: IGitResult) {
     this.setState({
-      error: '',
-      info: '',
       logs: reply.result.data
     });
   }
 
   private handleGitStageReply(reply: IGitResult) {
-    this.setState({
-      error: '',
-      info: reply.result.data[0] || ''
-    });
     this.gitStatus();
   }
 
@@ -654,17 +604,19 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitCommitReply(reply: IGitResult) {
-    this.setState({
-      error: '',
-      info: ''
-    });
     this.gitStatus();
   }
 
   private handleUnknownReply(reply: IGitResult) {
     this.setState({
-      error: 'UNKNOWN COMMAND',
-      info: ''
+      popupMsg: 'UNKNOWN COMMAND',
+      isPopupVisible: true
+    });
+  }
+
+  private handlePopupCloseClick(e: React.MouseEvent<HTMLElement>) {
+    this.setState({
+      isPopupVisible: false
     });
   }
 }
