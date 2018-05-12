@@ -27,6 +27,7 @@ interface IState {
   selectedFiles: Array<string>;
   commitMsg: string;
   popupMsg: string;
+  popupTitle: string;
   isPopupVisible: boolean;
 }
 
@@ -166,6 +167,7 @@ class MainView extends React.Component<IProps, IState> {
       selectedFiles: [],
       commitMsg: '',
       popupMsg: '',
+      popupTitle: '',
       isPopupVisible: false
     };
 
@@ -209,6 +211,7 @@ class MainView extends React.Component<IProps, IState> {
         } else {
           this.setState({
             popupMsg: reply.result.data[0],
+            popupTitle: 'Error',
             isPopupVisible: true
           });
         }
@@ -305,14 +308,19 @@ class MainView extends React.Component<IProps, IState> {
         </div>
           {this.state.isPopupVisible ? (
           <div className="popup__mask">
-            <div className="popup__content">
-              <span
-                className="popup__close"
-                onClick={this.handlePopupCloseClick}
-              >
-              X
-              </span>
-              <span>{this.state.popupMsg}</span>
+            <div className="popup__wrapper">
+              <div className="popup__title">
+                <span>{this.state.popupTitle}</span>
+                <span
+                  className="popup__close"
+                  onClick={this.handlePopupCloseClick}
+                >
+                X
+                </span>
+              </div>
+              <div className="popup__content">
+                <span>{this.state.popupMsg}</span>
+              </div>
             </div>
           </div>
           ) : null}
@@ -610,6 +618,7 @@ class MainView extends React.Component<IProps, IState> {
   private handleUnknownReply(reply: IGitResult) {
     this.setState({
       popupMsg: 'UNKNOWN COMMAND',
+      popupTitle: 'Error',
       isPopupVisible: true
     });
   }

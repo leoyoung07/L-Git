@@ -4,6 +4,7 @@
 
 * {
   box-sizing: border-box;
+  font-family: sans-serif;
 }
 
 html, body, ul {
@@ -70,7 +71,7 @@ html, body, .stretch {
     align-items: center;
     background: rgba(0, 0, 0, 0.5);
 
-    .popup__content {
+    .popup__wrapper {
       background: white;
       border-radius: 5px;
       position: relative;
@@ -84,5 +85,13 @@ html, body, .stretch {
       cursor: pointer;
       user-select: none;
       font-family: sans-serif;
+    }
+    .popup__title {
+      border-bottom: 1px solid #d0caca;
+      padding: 5px 0;
+      font-weight: bold;
+    }
+    .popup__content {
+      padding: 10px;
     }
 }
