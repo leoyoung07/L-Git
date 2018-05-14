@@ -1,7 +1,6 @@
 import CodeMirror from 'codemirror';
 import 'codemirror/addon/merge/merge';
 import { ipcRenderer, remote } from 'electron';
-import moment from 'moment';
 import React from 'react';
 import {
   COMMAND_STATE,
@@ -12,6 +11,7 @@ import {
   IGitResult,
   IGitStatus
 } from '../ipc_common/constants';
+import LogView from './LogView';
 import './MainView.scss';
 
 interface IProps {}
@@ -29,17 +29,8 @@ interface IState {
   popupMsg: string;
   popupTitle: string;
   isPopupVisible: boolean;
-}
-
-interface ILogViewProps {
-  currentCommit: string | null;
-  nextCommit: string | null;
-  logs: Array<string>;
-
-  handleLogItemClick: (
-    commit: string,
-    e: React.MouseEvent<HTMLElement>
-  ) => void;
+  gridTemplateColumns: string;
+  logViewWidth: number;
 }
 
 interface IChangesViewProps {
@@ -47,50 +38,6 @@ interface IChangesViewProps {
   selectedFiles: Array<string>;
   handleChangesItemClick: (file: string, e: React.MouseEvent<HTMLElement>) => void;
 }
-
-const LogView = (props: ILogViewProps) => {
-  return (
-    <table>
-      <thead>
-        <tr>
-          <th>Message</th>
-          <th>Author</th>
-          <th>Time</th>
-        </tr>
-      </thead>
-      <tbody>
-        {props.logs.map(log => {
-          let background;
-          const commit = JSON.parse(log) as IGitCommit;
-          if (commit.sha === props.currentCommit) {
-            background = 'red';
-          } else if (commit.sha === props.nextCommit) {
-            background = 'yellow';
-          } else {
-            background = 'inherit';
-          }
-          return (
-            <tr
-              style={{
-                listStyle: 'none',
-                cursor: 'pointer',
-                background: background
-              }}
-              key={commit.sha}
-              onClick={e => {
-                props.handleLogItemClick(commit.sha, e);
-              }}
-            >
-              <td>{commit.msg}</td>
-              <td>{commit.author}</td>
-              <td>{moment(commit.timestamp).format('YYYY-MM-DD HH:mm:ss')}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-};
 
 const ChangesView = (props: IChangesViewProps) => {
   return (
@@ -131,8 +78,11 @@ const ChangesView = (props: IChangesViewProps) => {
 };
 
 class MainView extends React.Component<IProps, IState> {
+
+  private logViewRef = React.createRef();
   constructor(props: IProps) {
     super(props);
+    // bind event handlers
     this.handleGitStatusButtonClick = this.handleGitStatusButtonClick.bind(
       this
     );
@@ -156,6 +106,9 @@ class MainView extends React.Component<IProps, IState> {
     this.handleLogItemClick = this.handleLogItemClick.bind(this);
     this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
     this.handleChangesItemClick = this.handleChangesItemClick.bind(this);
+    this.handlePanelSplitDBClick = this.handlePanelSplitDBClick.bind(this);
+    this.handleLogViewWidthChange = this.handleLogViewWidthChange.bind(this);
+    // init state
     this.state = {
       repositoryName: '',
       repositoryPath: '',
@@ -168,9 +121,12 @@ class MainView extends React.Component<IProps, IState> {
       commitMsg: '',
       popupMsg: '',
       popupTitle: '',
-      isPopupVisible: false
+      isPopupVisible: false,
+      gridTemplateColumns: '',
+      logViewWidth: 0
     };
 
+    // register ipc reply handlers
     ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
       if (msg) {
         const reply = JSON.parse(msg) as IGitResult;
@@ -228,7 +184,10 @@ class MainView extends React.Component<IProps, IState> {
   render() {
     return (
       <div className="main-view__wrapper">
-        <div className="grid">
+        <div
+          className="grid"
+          style={{gridTemplateColumns: this.state.gridTemplateColumns}}
+        >
           <div className="grid-item-1">
             <button onClick={this.handleGitOpenButtonClick}>Open</button>
             <span>{this.state.repositoryName}</span>
@@ -286,6 +245,7 @@ class MainView extends React.Component<IProps, IState> {
               nextCommit={this.state.nextCommit}
               logs={this.state.logs}
               handleLogItemClick={this.handleLogItemClick}
+              handleWidthChange={this.handleLogViewWidthChange}
             />
           </div>
           <div className="grid-item-4">
@@ -305,6 +265,10 @@ class MainView extends React.Component<IProps, IState> {
             ) : null}
             <div id="compareView" className="compare-view" />
           </div>
+          <div
+            className="grid-item-5"
+            onDoubleClick={this.handlePanelSplitDBClick}
+          />
         </div>
           {this.state.isPopupVisible ? (
           <div className="popup__mask">
@@ -626,6 +590,20 @@ class MainView extends React.Component<IProps, IState> {
   private handlePopupCloseClick(e: React.MouseEvent<HTMLElement>) {
     this.setState({
       isPopupVisible: false
+    });
+  }
+
+  private handlePanelSplitDBClick(e: React.MouseEvent<HTMLElement>) {
+    const scrollBarWidth = 20;
+    const width = this.state.logViewWidth + scrollBarWidth;
+    this.setState({
+      gridTemplateColumns: `${width}px 1px 1fr`
+    });
+  }
+
+  private handleLogViewWidthChange (oldWidth: number, newWidth: number) {
+    this.setState({
+      logViewWidth: newWidth
     });
   }
 }
