@@ -23,11 +23,21 @@ class LogView extends React.Component<ILogViewProps, ILogViewState> {
     super(props);
   }
 
+  shouldComponentUpdate(nextProps: ILogViewProps, nextState: ILogViewState) {
+    if (this.props.currentCommit !== nextProps.currentCommit) {
+      return true;
+    } else if (this.props.nextCommit !== nextProps.nextCommit) {
+      return true;
+    } else if (this.props.logs !== nextProps.logs) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   componentDidUpdate(prevProps: ILogViewProps, prevState: ILogViewState) {
-    if (prevProps.logs !== this.props.logs) {
-      if (this.logViewRef) {
-        this.props.handleWidthChange(0, this.logViewRef.scrollWidth);
-      }
+    if (this.logViewRef) {
+      this.props.handleWidthChange(0, this.logViewRef.scrollWidth);
     }
   }
 

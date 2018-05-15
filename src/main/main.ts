@@ -281,10 +281,13 @@ async function diffHandler(command: IGitCommand): Promise<IGitResult> {
     const tree1 = await commit1.getTree();
     const commit2 = await repository.getCommit(command.args[1]);
     const tree2 = await commit2.getTree();
-    const diff = await Git.Diff.treeToTree(repository, tree1, tree2);
+    const diff = await Git.Diff.treeToTree(repository, tree2, tree1);
     const patches = await diff.patches();
     const files = patches.map(patch => {
-      return patch.newFile().path() + ' ' + patchStatusToText(patch);
+      return JSON.stringify({
+        file: patch.newFile().path(),
+        status: patchStatusToText(patch)
+      });
     });
     reply = {
       cmd: command.cmd,
@@ -390,7 +393,7 @@ async function compareHandler(command: IGitCommand): Promise<IGitResult> {
     } else {
       const commit = await repository.getHeadCommit();
       oldContent = await getFileContentAtCommit(filePath, commit);
-      newContent = readFileSync(path.resolve(repository.path(), '..', filePath)).toString('utf-8');
+      newContent = getFileContent(path.resolve(repository.path(), '..', filePath));
     }
 
     reply = {
@@ -415,9 +418,25 @@ async function compareHandler(command: IGitCommand): Promise<IGitResult> {
 }
 
 async function getFileContentAtCommit(filePath: string, commit: Git.Commit) {
-  const entry = await commit.getEntry(filePath);
-  const blob = await entry.getBlob();
-  return blob.toString();
+  let content;
+  try {
+    const entry = await commit.getEntry(filePath);
+    const blob = await entry.getBlob();
+    content = blob.toString();
+  } catch (error) {
+    content = '';
+  }
+  return content;
+}
+
+function getFileContent(filePath: string) {
+  let content;
+  try {
+    content = readFileSync(filePath).toString('utf-8');
+  } catch (error) {
+    content = '';
+  }
+  return content;
 }
 
 async function commitHandler(command: IGitCommand): Promise<IGitResult> {

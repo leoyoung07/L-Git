@@ -511,14 +511,18 @@ class MainView extends React.Component<IProps, IState> {
         const commit = JSON.parse(value) as IGitCommit;
         return commit.sha === newCommitSha;
       });
-      let oldCommitStr: string | undefined;
-      if (newCommitIndex >= 0) {
-        oldCommitStr = this.state.logs.find((value, index) => index === (newCommitIndex + 1));
-      }
       let oldCommitSha: string | undefined;
-      if (oldCommitStr) {
-        const oldCommit = JSON.parse(oldCommitStr) as IGitCommit;
-        oldCommitSha = oldCommit.sha;
+      if (this.state.nextCommit) {
+        oldCommitSha = this.state.nextCommit;
+      } else {
+        let oldCommitStr: string | undefined;
+        if (newCommitIndex >= 0) {
+          oldCommitStr = this.state.logs.find((value, index) => index === (newCommitIndex + 1));
+        }
+        if (oldCommitStr) {
+          const oldCommit = JSON.parse(oldCommitStr) as IGitCommit;
+          oldCommitSha = oldCommit.sha;
+        }
       }
       this.setState(
         {
