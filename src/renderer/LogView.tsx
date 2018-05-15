@@ -4,7 +4,7 @@ import { IGitCommit } from '../ipc_common/constants';
 interface ILogViewProps {
   currentCommit: string | null;
   nextCommit: string | null;
-  logs: Array<string>;
+  logs: Array<IGitCommit>;
 
   handleLogItemClick: (
     commit: string,
@@ -52,9 +52,8 @@ class LogView extends React.Component<ILogViewProps, ILogViewState> {
           </tr>
         </thead>
         <tbody>
-          {this.props.logs.map(log => {
+          {this.props.logs.map(commit => {
             let background;
-            const commit = JSON.parse(log) as IGitCommit;
             if (commit.sha === this.props.currentCommit) {
               background = 'red';
             } else if (commit.sha === this.props.nextCommit) {

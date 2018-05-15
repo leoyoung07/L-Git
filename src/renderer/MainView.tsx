@@ -21,7 +21,7 @@ interface IState {
   repositoryPath: string;
   currentCommit: string | null;
   nextCommit: string | null;
-  logs: Array<string>;
+  logs: Array<IGitCommit>;
   changes: Array<string>;
   status: Array<string>;
   selectedFiles: Array<string>;
@@ -507,22 +507,15 @@ class MainView extends React.Component<IProps, IState> {
   ) {
     const newCommitSha = this.state.currentCommit;
     if (newCommitSha) {
-      const newCommitIndex =  this.state.logs.findIndex(value => {
-        const commit = JSON.parse(value) as IGitCommit;
-        return commit.sha === newCommitSha;
-      });
       let oldCommitSha: string | undefined;
       if (this.state.nextCommit) {
         oldCommitSha = this.state.nextCommit;
       } else {
-        let oldCommitStr: string | undefined;
-        if (newCommitIndex >= 0) {
-          oldCommitStr = this.state.logs.find((value, index) => index === (newCommitIndex + 1));
-        }
-        if (oldCommitStr) {
-          const oldCommit = JSON.parse(oldCommitStr) as IGitCommit;
-          oldCommitSha = oldCommit.sha;
-        }
+        const newCommitIndex =  this.state.logs.findIndex(value => {
+          return value.sha === newCommitSha;
+        });
+        const oldCommit = this.state.logs[newCommitIndex + 1];
+        oldCommitSha = oldCommit ? oldCommit.sha : undefined;
       }
       this.setState(
         {
@@ -559,8 +552,11 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitLogReply(reply: IGitResult) {
+    const logs = reply.result.data.map(logStr => {
+      return JSON.parse(logStr) as IGitCommit;
+    });
     this.setState({
-      logs: reply.result.data
+      logs: logs
     });
   }
 
