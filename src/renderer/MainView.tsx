@@ -22,8 +22,8 @@ interface IState {
   currentCommit: string | null;
   nextCommit: string | null;
   logs: Array<IGitCommit>;
-  changes: Array<string>;
-  status: Array<string>;
+  changes: Array<IGitStatus>;
+  status: Array<IGitStatus>;
   selectedFiles: Array<string>;
   commitMsg: string;
   popupMsg: string;
@@ -34,7 +34,7 @@ interface IState {
 }
 
 interface IChangesViewProps {
-  changes: Array<string>;
+  changes: Array<IGitStatus>;
   selectedFiles: Array<string>;
   handleChangesItemClick: (file: string, e: React.MouseEvent<HTMLElement>) => void;
 }
@@ -42,9 +42,8 @@ interface IChangesViewProps {
 const ChangesView = (props: IChangesViewProps) => {
   return (
     <ul className="changes-list">
-    {props.changes.map((fileStatusStr, index) => {
+    {props.changes.map((fileStatus, index) => {
       let background;
-      const fileStatus = JSON.parse(fileStatusStr) as IGitStatus;
       const file = fileStatus.file;
       if (props.selectedFiles.indexOf(file) < 0) {
         background = 'inherit';
@@ -534,20 +533,29 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitStatusReply(reply: IGitResult) {
+    const status = reply.result.data.map(statusStr => {
+      return JSON.parse(statusStr) as IGitStatus;
+    });
     this.setState({
-      status: reply.result.data
+      status: status
     });
   }
 
   private handleGitChangesReply(reply: IGitResult) {
+    const changes = reply.result.data.map(changeStr => {
+      return JSON.parse(changeStr) as IGitStatus;
+    });
     this.setState({
-      changes: reply.result.data
+      changes: changes
     });
   }
 
   private handleGitDiffReply(reply: IGitResult) {
+    const changes = reply.result.data.map(changeStr => {
+      return JSON.parse(changeStr) as IGitStatus;
+    });
     this.setState({
-      changes: reply.result.data
+      changes: changes
     });
   }
 
