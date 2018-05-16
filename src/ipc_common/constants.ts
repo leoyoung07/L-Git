@@ -50,3 +50,14 @@ export enum COMMAND_STATE {
   SUCCESS = 'success',
   FAIL = 'fail'
 }
+
+interface IError {
+  code: string;
+  msg: string;
+}
+export const ERRORS: {E001: IError} = {
+  'E001': {
+    code: 'E001',
+    msg: 'Please open a git repository first.'
+  }
+};

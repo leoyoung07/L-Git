@@ -1,4 +1,4 @@
-import { resolve } from 'app-root-path';
+import { resolve as resolveFromRoot } from 'app-root-path';
 import { spawn } from 'child_process';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import installExtension, {
@@ -13,6 +13,7 @@ import path from 'path';
 import url from 'url';
 import {
   COMMAND_STATE,
+  ERRORS,
   GIT_COMMANDS,
   GIT_STATUS,
   IGitCommand,
@@ -35,7 +36,7 @@ function createWindow() {
     slashes: true
   });
   const prodUrl = url.format({
-    pathname: resolve('dist/renderer/production/index.html'),
+    pathname: resolveFromRoot('dist/renderer/production/index.html'),
     protocol: 'file:',
     slashes: true
   });
@@ -66,41 +67,52 @@ function createWindow() {
     if (msg) {
       const command: IGitCommand = JSON.parse(msg);
       let reply: IGitResult;
-      switch (command.cmd) {
-        case GIT_COMMANDS.STATUS:
-          reply = await statusHandler(command);
-          break;
-        case GIT_COMMANDS.OPEN:
-          reply = await openHandler(command);
-          break;
-        case GIT_COMMANDS.CHANGES:
-          reply = await changesHandler(command);
-          break;
-        case GIT_COMMANDS.DIFF:
-          reply = await diffHandler(command);
-          break;
-        case GIT_COMMANDS.LOG:
-          reply = await logHandler(command);
-          break;
-        case GIT_COMMANDS.STAGE:
-          reply = await stageHandler(command);
-          break;
-        case GIT_COMMANDS.COMPARE:
-          reply = await compareHandler(command);
-          break;
-        case GIT_COMMANDS.COMMIT:
-          reply = await commitHandler(command);
-          break;
-        default:
-          reply = {
-            cmd: command.cmd,
-            repository: repository ? repository.path() : '',
-            result: {
-              state: COMMAND_STATE.SUCCESS,
-              data: []
-            }
-          };
-          break;
+      if (!repository && command.cmd !== GIT_COMMANDS.OPEN) {
+        reply = {
+          cmd: command.cmd,
+          repository: '',
+          result: {
+            state: COMMAND_STATE.FAIL,
+            data: [ERRORS.E001.code, ERRORS.E001.msg]
+          }
+        };
+      } else {
+        switch (command.cmd) {
+          case GIT_COMMANDS.STATUS:
+            reply = await statusHandler(command);
+            break;
+          case GIT_COMMANDS.OPEN:
+            reply = await openHandler(command);
+            break;
+          case GIT_COMMANDS.CHANGES:
+            reply = await changesHandler(command);
+            break;
+          case GIT_COMMANDS.DIFF:
+            reply = await diffHandler(command);
+            break;
+          case GIT_COMMANDS.LOG:
+            reply = await logHandler(command);
+            break;
+          case GIT_COMMANDS.STAGE:
+            reply = await stageHandler(command);
+            break;
+          case GIT_COMMANDS.COMPARE:
+            reply = await compareHandler(command);
+            break;
+          case GIT_COMMANDS.COMMIT:
+            reply = await commitHandler(command);
+            break;
+          default:
+            reply = {
+              cmd: command.cmd,
+              repository: repository ? repository.path() : '',
+              result: {
+                state: COMMAND_STATE.SUCCESS,
+                data: []
+              }
+            };
+            break;
+        }
       }
       event.sender.send('git-result', JSON.stringify(reply));
     }
@@ -209,211 +221,145 @@ async function openHandler(command: IGitCommand): Promise<IGitResult> {
 
 async function statusHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const statuses = await repository.getStatus();
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: statuses.map(status => {
-          return JSON.stringify({
-            file: status.path(),
-            status: fileStatusToText(status)
-          });
-        })
-      }
-    };
-  } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
-  }
+  const statuses = await repository.getStatus();
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: statuses.map(status => {
+        return JSON.stringify({
+          file: status.path(),
+          status: fileStatusToText(status)
+        });
+      })
+    }
+  };
   return reply;
 }
 
 async function changesHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const commit = await repository.getCommit(command.args[0]);
-    const diffs = await commit.getDiff();
-    const files: Array<string> = [];
-    for (let i = 0; i < diffs.length; i++) {
-      const diff = diffs[i];
-      const patches = await diff.patches();
-      patches.forEach(patch => {
-        files.push(JSON.stringify({
-          file: patch.newFile().path(),
-          status: patchStatusToText(patch)
-        }));
-      });
-    }
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: files
-      }
-    };
-  } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
+  const commit = await repository.getCommit(command.args[0]);
+  const diffs = await commit.getDiff();
+  const files: Array<string> = [];
+  for (let i = 0; i < diffs.length; i++) {
+    const diff = diffs[i];
+    const patches = await diff.patches();
+    patches.forEach(patch => {
+      files.push(JSON.stringify({
+        file: patch.newFile().path(),
+        status: patchStatusToText(patch)
+      }));
+    });
   }
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: files
+    }
+  };
   return reply;
 }
 
 async function diffHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const commit1 = await repository.getCommit(command.args[0]);
-    const tree1 = await commit1.getTree();
-    const commit2 = await repository.getCommit(command.args[1]);
-    const tree2 = await commit2.getTree();
-    const diff = await Git.Diff.treeToTree(repository, tree2, tree1);
-    const patches = await diff.patches();
-    const files = patches.map(patch => {
-      return JSON.stringify({
-        file: patch.newFile().path(),
-        status: patchStatusToText(patch)
-      });
+  const commit1 = await repository.getCommit(command.args[0]);
+  const tree1 = await commit1.getTree();
+  const commit2 = await repository.getCommit(command.args[1]);
+  const tree2 = await commit2.getTree();
+  const diff = await Git.Diff.treeToTree(repository, tree2, tree1);
+  const patches = await diff.patches();
+  const files = patches.map(patch => {
+    return JSON.stringify({
+      file: patch.newFile().path(),
+      status: patchStatusToText(patch)
     });
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: files
-      }
-    };
-  } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
-  }
+  });
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: files
+    }
+  };
   return reply;
 }
 
 async function logHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const commit = await repository.getMasterCommit();
-    const historyCommits = await getHistoryCommits(commit);
-    const data = historyCommits.map(historyCommit => {
-      return JSON.stringify({
-        sha: historyCommit.sha(),
-        msg: historyCommit.message(),
-        author: historyCommit.author().name(),
-        timestamp: historyCommit.date().getTime()
-      });
+  const commit = await repository.getMasterCommit();
+  const historyCommits = await getHistoryCommits(commit);
+  const data = historyCommits.map(historyCommit => {
+    return JSON.stringify({
+      sha: historyCommit.sha(),
+      msg: historyCommit.message(),
+      author: historyCommit.author().name(),
+      timestamp: historyCommit.date().getTime()
     });
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: data
-      }
-    };
-  } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
-  }
+  });
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: data
+    }
+  };
   return reply;
 }
 
 async function stageHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const index = await repository.refreshIndex();
-    for (let i = 0; i < command.args.length; i++) {
-      const file = command.args[i];
-      await index.addByPath(file);
-    }
-    index.write();
-    const oid = await index.writeTree();
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: [oid.tostrS()]
-      }
-    };
-  } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
+  const index = await repository.refreshIndex();
+  for (let i = 0; i < command.args.length; i++) {
+    const file = command.args[i];
+    await index.addByPath(file);
   }
+  index.write();
+  const oid = await index.writeTree();
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: [oid.tostrS()]
+    }
+  };
   return reply;
 }
 
 async function compareHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const filePath = command.args[0];
-    const newCommitSha = command.args[1];
-    const oldCommitSha = command.args[2];
-    let oldContent: string;
-    let newContent: string;
-    if (newCommitSha) {
-      newContent = await getFileContentAtCommit(filePath, await repository.getCommit(newCommitSha));
-      if (oldCommitSha) {
-        oldContent = await getFileContentAtCommit(filePath, await repository.getCommit(oldCommitSha));
-      } else {
-        oldContent = '';
-      }
+  const filePath = command.args[0];
+  const newCommitSha = command.args[1];
+  const oldCommitSha = command.args[2];
+  let oldContent: string;
+  let newContent: string;
+  if (newCommitSha) {
+    newContent = await getFileContentAtCommit(filePath, await repository.getCommit(newCommitSha));
+    if (oldCommitSha) {
+      oldContent = await getFileContentAtCommit(filePath, await repository.getCommit(oldCommitSha));
     } else {
-      const commit = await repository.getHeadCommit();
-      oldContent = await getFileContentAtCommit(filePath, commit);
-      newContent = getFileContent(path.resolve(repository.path(), '..', filePath));
+      oldContent = '';
     }
-
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: [oldContent, newContent]
-      }
-    };
   } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
+    const commit = await repository.getHeadCommit();
+    oldContent = await getFileContentAtCommit(filePath, commit);
+    newContent = getFileContent(path.resolve(repository.path(), '..', filePath));
   }
+
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: [oldContent, newContent]
+    }
+  };
   return reply;
 }
 
@@ -441,36 +387,24 @@ function getFileContent(filePath: string) {
 
 async function commitHandler(command: IGitCommand): Promise<IGitResult> {
   let reply: IGitResult;
-  if (repository) {
-    const head = await repository.getHeadCommit();
-    const signature = repository.defaultSignature();
-    const index = await repository.refreshIndex();
-    const oid = await index.writeTree();
-    const commitId = await repository.createCommit('HEAD', signature, signature, command.args[0], oid, [head]);
-    reply = {
-      cmd: command.cmd,
-      repository: repository.path(),
-      result: {
-        state: COMMAND_STATE.SUCCESS,
-        data: [commitId.tostrS()]
-      }
-    };
-  } else {
-    reply = {
-      cmd: command.cmd,
-      repository: '',
-      result: {
-        state: COMMAND_STATE.FAIL,
-        data: ['Please open a git repository first.']
-      }
-    };
-  }
+  const head = await repository.getHeadCommit();
+  const signature = repository.defaultSignature();
+  const index = await repository.refreshIndex();
+  const oid = await index.writeTree();
+  const commitId = await repository.createCommit('HEAD', signature, signature, command.args[0], oid, [head]);
+  reply = {
+    cmd: command.cmd,
+    repository: repository.path(),
+    result: {
+      state: COMMAND_STATE.SUCCESS,
+      data: [commitId.tostrS()]
+    }
+  };
   return reply;
 }
 
 function getHistoryCommits(startCommit: Git.Commit): Promise<Array<Git.Commit>> {
   const commits: Array<Git.Commit> = [];
-  // tslint:disable-next-line:no-shadowed-variable
   return new Promise((resolve, reject) => {
     const history = startCommit.history();
     history.on('commit', function (commit: Git.Commit) {

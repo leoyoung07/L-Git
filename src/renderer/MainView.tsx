@@ -4,6 +4,7 @@ import { ipcRenderer, remote } from 'electron';
 import React from 'react';
 import {
   COMMAND_STATE,
+  ERRORS,
   GIT_COMMANDS,
   GIT_STATUS,
   IGitCommand,
@@ -31,53 +32,55 @@ interface IState {
   isPopupVisible: boolean;
   gridTemplateColumns: string;
   logViewWidth: number;
+  onPopupOk?: () => void;
+  onPopupCancel?: () => void;
 }
 
 interface IChangesViewProps {
   changes: Array<IGitStatus>;
   selectedFiles: Array<string>;
-  handleChangesItemClick: (file: string, e: React.MouseEvent<HTMLElement>) => void;
+  handleChangesItemClick: (
+    file: string,
+    e: React.MouseEvent<HTMLElement>
+  ) => void;
 }
 
 const ChangesView = (props: IChangesViewProps) => {
   return (
     <ul className="changes-list">
-    {props.changes.map((fileStatus, index) => {
-      let background;
-      const file = fileStatus.file;
-      if (props.selectedFiles.indexOf(file) < 0) {
-        background = 'inherit';
-      } else {
-        background = 'cyan';
-      }
-      return (
-        <li
-          style={{
-            listStyle: 'none',
-            cursor: 'pointer',
-            background: background,
-            display: 'flex',
-            flexWrap: 'nowrap',
-            justifyContent: 'space-between'
-          }}
-          key={index}
-          onClick={(e) => { props.handleChangesItemClick(file, e); }}
-        >
-          <span>
-            {file}
-          </span>
-          <span>
-            {fileStatus.status}
-          </span>
-        </li>
-      );
-    })}
-  </ul>
+      {props.changes.map((fileStatus, index) => {
+        let background;
+        const file = fileStatus.file;
+        if (props.selectedFiles.indexOf(file) < 0) {
+          background = 'inherit';
+        } else {
+          background = 'cyan';
+        }
+        return (
+          <li
+            style={{
+              listStyle: 'none',
+              cursor: 'pointer',
+              background: background,
+              display: 'flex',
+              flexWrap: 'nowrap',
+              justifyContent: 'space-between'
+            }}
+            key={index}
+            onClick={e => {
+              props.handleChangesItemClick(file, e);
+            }}
+          >
+            <span>{file}</span>
+            <span>{fileStatus.status}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 };
 
 class MainView extends React.Component<IProps, IState> {
-
   private logViewRef = React.createRef();
   constructor(props: IProps) {
     super(props);
@@ -101,12 +104,12 @@ class MainView extends React.Component<IProps, IState> {
     this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(
       this
     );
-    this.handlePopupCloseClick = this.handlePopupCloseClick.bind(this);
     this.handleLogItemClick = this.handleLogItemClick.bind(this);
     this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
     this.handleChangesItemClick = this.handleChangesItemClick.bind(this);
     this.handlePanelSplitDBClick = this.handlePanelSplitDBClick.bind(this);
     this.handleLogViewWidthChange = this.handleLogViewWidthChange.bind(this);
+    this.handleResultError = this.handleResultError.bind(this);
     // init state
     this.state = {
       repositoryName: '',
@@ -164,11 +167,7 @@ class MainView extends React.Component<IProps, IState> {
               break;
           }
         } else {
-          this.setState({
-            popupMsg: reply.result.data[0],
-            popupTitle: 'Error',
-            isPopupVisible: true
-          });
+          this.handleResultError(reply);
         }
         // tslint:disable-next-line:no-console
         console.log(msg);
@@ -185,7 +184,7 @@ class MainView extends React.Component<IProps, IState> {
       <div className="main-view__wrapper">
         <div
           className="grid"
-          style={{gridTemplateColumns: this.state.gridTemplateColumns}}
+          style={{ gridTemplateColumns: this.state.gridTemplateColumns }}
         >
           <div className="grid-item-1">
             <button onClick={this.handleGitOpenButtonClick}>Open</button>
@@ -269,24 +268,41 @@ class MainView extends React.Component<IProps, IState> {
             onDoubleClick={this.handlePanelSplitDBClick}
           />
         </div>
-          {this.state.isPopupVisible ? (
+        {this.state.isPopupVisible ? (
           <div className="popup__mask">
             <div className="popup__wrapper">
               <div className="popup__title">
                 <span>{this.state.popupTitle}</span>
                 <span
                   className="popup__close"
-                  onClick={this.handlePopupCloseClick}
+                  onClick={(e) => {
+                    this.closePopup();
+                    if (this.state.onPopupCancel) {
+                      this.state.onPopupCancel();
+                    }
+                  }}
                 >
-                X
+                  X
                 </span>
               </div>
               <div className="popup__content">
                 <span>{this.state.popupMsg}</span>
               </div>
+              <div className="popup__actions">
+                <button
+                  onClick={e => {
+                    this.closePopup();
+                    if (this.state.onPopupOk) {
+                      this.state.onPopupOk();
+                    }
+                  }}
+                >
+                  OK
+                </button>
+              </div>
             </div>
           </div>
-          ) : null}
+        ) : null}
       </div>
     );
   }
@@ -317,7 +333,9 @@ class MainView extends React.Component<IProps, IState> {
     });
   }
 
-  private handleGitOpenButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+  private handleGitOpenButtonClick(
+    e: React.MouseEvent<HTMLButtonElement> | null
+  ) {
     remote.dialog.showOpenDialog(
       {
         defaultPath: process.cwd(),
@@ -510,7 +528,7 @@ class MainView extends React.Component<IProps, IState> {
       if (this.state.nextCommit) {
         oldCommitSha = this.state.nextCommit;
       } else {
-        const newCommitIndex =  this.state.logs.findIndex(value => {
+        const newCommitIndex = this.state.logs.findIndex(value => {
           return value.sha === newCommitSha;
         });
         const oldCommit = this.state.logs[newCommitIndex + 1];
@@ -595,7 +613,7 @@ class MainView extends React.Component<IProps, IState> {
     });
   }
 
-  private handlePopupCloseClick(e: React.MouseEvent<HTMLElement>) {
+  private closePopup() {
     this.setState({
       isPopupVisible: false
     });
@@ -609,9 +627,20 @@ class MainView extends React.Component<IProps, IState> {
     });
   }
 
-  private handleLogViewWidthChange (oldWidth: number, newWidth: number) {
+  private handleLogViewWidthChange(oldWidth: number, newWidth: number) {
     this.setState({
       logViewWidth: newWidth
+    });
+  }
+
+  private handleResultError(reply: IGitResult) {
+    const errCode = reply.result.data[0];
+    const errMsg = reply.result.data[1];
+    this.setState({
+      popupMsg: errMsg,
+      popupTitle: errCode,
+      isPopupVisible: true,
+      onPopupOk: () => { this.handleGitOpenButtonClick(null); }
     });
   }
 }
