@@ -14,6 +14,7 @@ import {
 } from '../ipc_common/constants';
 import LogView from './LogView';
 import './MainView.scss';
+import Popup from './Popup';
 
 interface IProps {}
 
@@ -125,7 +126,12 @@ class MainView extends React.Component<IProps, IState> {
       popupTitle: '',
       isPopupVisible: false,
       gridTemplateColumns: '',
-      logViewWidth: 0
+      logViewWidth: 0,
+      onPopupCancel: () => {
+        this.setState({
+          isPopupVisible: false
+        });
+      }
     };
 
     // register ipc reply handlers
@@ -268,41 +274,13 @@ class MainView extends React.Component<IProps, IState> {
             onDoubleClick={this.handlePanelSplitDBClick}
           />
         </div>
-        {this.state.isPopupVisible ? (
-          <div className="popup__mask">
-            <div className="popup__wrapper">
-              <div className="popup__title">
-                <span>{this.state.popupTitle}</span>
-                <span
-                  className="popup__close"
-                  onClick={(e) => {
-                    this.closePopup();
-                    if (this.state.onPopupCancel) {
-                      this.state.onPopupCancel();
-                    }
-                  }}
-                >
-                  X
-                </span>
-              </div>
-              <div className="popup__content">
-                <span>{this.state.popupMsg}</span>
-              </div>
-              <div className="popup__actions">
-                <button
-                  onClick={e => {
-                    this.closePopup();
-                    if (this.state.onPopupOk) {
-                      this.state.onPopupOk();
-                    }
-                  }}
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <Popup
+          popupTitle={this.state.popupTitle}
+          popupMsg={this.state.popupMsg}
+          onPopupOk={this.state.onPopupOk}
+          onPopupCancel={this.state.onPopupCancel}
+          visible={this.state.isPopupVisible}
+        />
       </div>
     );
   }
@@ -613,12 +591,6 @@ class MainView extends React.Component<IProps, IState> {
     });
   }
 
-  private closePopup() {
-    this.setState({
-      isPopupVisible: false
-    });
-  }
-
   private handlePanelSplitDBClick(e: React.MouseEvent<HTMLElement>) {
     const scrollBarWidth = 20;
     const width = this.state.logViewWidth + scrollBarWidth;
@@ -640,7 +612,12 @@ class MainView extends React.Component<IProps, IState> {
       popupMsg: errMsg,
       popupTitle: errCode,
       isPopupVisible: true,
-      onPopupOk: () => { this.handleGitOpenButtonClick(null); }
+      onPopupOk: () => {
+        this.handleGitOpenButtonClick(null);
+        this.setState({
+          isPopupVisible: false
+        });
+      }
     });
   }
 }
