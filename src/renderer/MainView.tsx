@@ -12,6 +12,7 @@ import {
   IGitResult,
   IGitStatus
 } from '../ipc_common/constants';
+import ChangesView from './ChangesView';
 import LogView from './LogView';
 import './MainView.scss';
 import Popup from './Popup';
@@ -36,50 +37,6 @@ interface IState {
   onPopupOk?: () => void;
   onPopupCancel?: () => void;
 }
-
-interface IChangesViewProps {
-  changes: Array<IGitStatus>;
-  selectedFiles: Array<string>;
-  handleChangesItemClick: (
-    file: string,
-    e: React.MouseEvent<HTMLElement>
-  ) => void;
-}
-
-const ChangesView = (props: IChangesViewProps) => {
-  return (
-    <ul className="changes-list">
-      {props.changes.map((fileStatus, index) => {
-        let background;
-        const file = fileStatus.file;
-        if (props.selectedFiles.indexOf(file) < 0) {
-          background = 'inherit';
-        } else {
-          background = 'cyan';
-        }
-        return (
-          <li
-            style={{
-              listStyle: 'none',
-              cursor: 'pointer',
-              background: background,
-              display: 'flex',
-              flexWrap: 'nowrap',
-              justifyContent: 'space-between'
-            }}
-            key={index}
-            onClick={e => {
-              props.handleChangesItemClick(file, e);
-            }}
-          >
-            <span>{file}</span>
-            <span>{fileStatus.status}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-};
 
 class MainView extends React.Component<IProps, IState> {
   private logViewRef = React.createRef();
