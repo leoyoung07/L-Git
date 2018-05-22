@@ -17,40 +17,31 @@ export default class GitHelper {
       if (msg) {
         const command: IGitCommand = JSON.parse(msg);
         let reply: IGitResult;
-        if (!GitHelper.repository && command.cmd !== GIT_COMMANDS.OPEN) {
-          reply = {
-            cmd: command.cmd,
-            repository: '',
-            result: {
-              state: COMMAND_STATE.FAIL,
-              data: [ERRORS.E001.code, ERRORS.E001.msg]
-            }
-          };
-        } else {
+        if (GitHelper.repository) {
           switch (command.cmd) {
             case GIT_COMMANDS.STATUS:
-              reply = await this.statusHandler(command);
+              reply = await this.statusHandler(command, GitHelper.repository);
               break;
             case GIT_COMMANDS.OPEN:
               reply = await this.openHandler(command);
               break;
             case GIT_COMMANDS.CHANGES:
-              reply = await this.changesHandler(command);
+              reply = await this.changesHandler(command, GitHelper.repository);
               break;
             case GIT_COMMANDS.DIFF:
-              reply = await this.diffHandler(command);
+              reply = await this.diffHandler(command, GitHelper.repository);
               break;
             case GIT_COMMANDS.LOG:
-              reply = await this.logHandler(command);
+              reply = await this.logHandler(command, GitHelper.repository);
               break;
             case GIT_COMMANDS.STAGE:
-              reply = await this.stageHandler(command);
+              reply = await this.stageHandler(command, GitHelper.repository);
               break;
             case GIT_COMMANDS.COMPARE:
-              reply = await this.compareHandler(command);
+              reply = await this.compareHandler(command, GitHelper.repository);
               break;
             case GIT_COMMANDS.COMMIT:
-              reply = await this.commitHandler(command);
+              reply = await this.commitHandler(command, GitHelper.repository);
               break;
             default:
               reply = {
@@ -63,6 +54,17 @@ export default class GitHelper {
               };
               break;
           }
+        } else if (command.cmd === GIT_COMMANDS.OPEN) {
+          reply = await this.openHandler(command);
+        } else {
+          reply = {
+            cmd: command.cmd,
+            repository: '',
+            result: {
+              state: COMMAND_STATE.FAIL,
+              data: [ERRORS.E001.code, ERRORS.E001.msg]
+            }
+          };
         }
         event.sender.send('git-result', JSON.stringify(reply));
       }
@@ -132,12 +134,12 @@ export default class GitHelper {
     };
   }
 
-  private static async statusHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async statusHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
-    const statuses = await GitHelper.repository!.getStatus();
+    const statuses = await repository.getStatus();
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: statuses.map(status => {
@@ -151,9 +153,9 @@ export default class GitHelper {
     return reply;
   }
 
-  private static async changesHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async changesHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
-    const commit = await GitHelper.repository!.getCommit(command.args[0]);
+    const commit = await repository.getCommit(command.args[0]);
     const diffs = await commit.getDiff();
     const files: Array<string> = [];
     for (let i = 0; i < diffs.length; i++) {
@@ -170,7 +172,7 @@ export default class GitHelper {
     }
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: files
@@ -179,13 +181,13 @@ export default class GitHelper {
     return reply;
   }
 
-  private static async diffHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async diffHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
-    const commit1 = await GitHelper.repository!.getCommit(command.args[0]);
+    const commit1 = await repository.getCommit(command.args[0]);
     const tree1 = await commit1.getTree();
-    const commit2 = await GitHelper.repository!.getCommit(command.args[1]);
+    const commit2 = await repository.getCommit(command.args[1]);
     const tree2 = await commit2.getTree();
-    const diff = await Git.Diff.treeToTree(GitHelper.repository!, tree2, tree1);
+    const diff = await Git.Diff.treeToTree(repository, tree2, tree1);
     const patches = await diff.patches();
     const files = patches.map(patch => {
       return JSON.stringify({
@@ -195,7 +197,7 @@ export default class GitHelper {
     });
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: files
@@ -204,9 +206,9 @@ export default class GitHelper {
     return reply;
   }
 
-  private static async logHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async logHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
-    const commit = await GitHelper.repository!.getMasterCommit();
+    const commit = await repository.getMasterCommit();
     const historyCommits = await this.getHistoryCommits(commit);
     const data = historyCommits.map(historyCommit => {
       return JSON.stringify({
@@ -218,7 +220,7 @@ export default class GitHelper {
     });
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: data
@@ -227,9 +229,9 @@ export default class GitHelper {
     return reply;
   }
 
-  private static async stageHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async stageHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
-    const index = await GitHelper.repository!.refreshIndex();
+    const index = await repository.refreshIndex();
     for (let i = 0; i < command.args.length; i++) {
       const file = command.args[i];
       await index.addByPath(file);
@@ -238,7 +240,7 @@ export default class GitHelper {
     const oid = await index.writeTree();
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: [oid.tostrS()]
@@ -247,7 +249,7 @@ export default class GitHelper {
     return reply;
   }
 
-  private static async compareHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async compareHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
     const filePath = command.args[0];
     const newCommitSha = command.args[1];
@@ -257,27 +259,27 @@ export default class GitHelper {
     if (newCommitSha) {
       newContent = await this.getFileContentAtCommit(
         filePath,
-        await GitHelper.repository!.getCommit(newCommitSha)
+        await repository.getCommit(newCommitSha)
       );
       if (oldCommitSha) {
         oldContent = await this.getFileContentAtCommit(
           filePath,
-          await GitHelper.repository!.getCommit(oldCommitSha)
+          await repository.getCommit(oldCommitSha)
         );
       } else {
         oldContent = '';
       }
     } else {
-      const commit = await GitHelper.repository!.getHeadCommit();
+      const commit = await repository.getHeadCommit();
       oldContent = await this.getFileContentAtCommit(filePath, commit);
       newContent = this.getFileContent(
-        path.resolve(GitHelper.repository!.path(), '..', filePath)
+        path.resolve(repository.path(), '..', filePath)
       );
     }
 
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: [oldContent, newContent]
@@ -308,13 +310,13 @@ export default class GitHelper {
     return content;
   }
 
-  private static async commitHandler(command: IGitCommand): Promise<IGitResult> {
+  private static async commitHandler(command: IGitCommand, repository: Git.Repository): Promise<IGitResult> {
     let reply: IGitResult;
-    const head = await GitHelper.repository!.getHeadCommit();
-    const signature = GitHelper.repository!.defaultSignature();
-    const index = await GitHelper.repository!.refreshIndex();
+    const head = await repository.getHeadCommit();
+    const signature = repository.defaultSignature();
+    const index = await repository.refreshIndex();
     const oid = await index.writeTree();
-    const commitId = await GitHelper.repository!.createCommit(
+    const commitId = await repository.createCommit(
       'HEAD',
       signature,
       signature,
@@ -324,7 +326,7 @@ export default class GitHelper {
     );
     reply = {
       cmd: command.cmd,
-      repository: GitHelper.repository!.path(),
+      repository: repository.path(),
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: [commitId.tostrS()]
