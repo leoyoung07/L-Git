@@ -28,6 +28,7 @@ interface IState {
   changes: Array<IGitStatus>;
   status: Array<IGitStatus>;
   selectedFiles: Array<string>;
+  recentRepositories: Array<string>;
   commitMsg: string;
   popupMsg: string;
   popupTitle: string;
@@ -42,100 +43,9 @@ class MainView extends React.Component<IProps, IState> {
   private logViewRef = React.createRef();
   constructor(props: IProps) {
     super(props);
-    // bind event handlers
-    this.handleGitStatusButtonClick = this.handleGitStatusButtonClick.bind(
-      this
-    );
-    this.handleGitOpenButtonClick = this.handleGitOpenButtonClick.bind(this);
-    this.handleGitChangesButtonClick = this.handleGitChangesButtonClick.bind(
-      this
-    );
-    this.handleGitDiffButtonClick = this.handleGitDiffButtonClick.bind(this);
-    this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
-    this.handleGitStageButtonClick = this.handleGitStageButtonClick.bind(this);
-    this.handleGitCompareButtonClick = this.handleGitCompareButtonClick.bind(
-      this
-    );
-    this.handleGitCommitButtonClick = this.handleGitCommitButtonClick.bind(
-      this
-    );
-    this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(
-      this
-    );
-    this.handleLogItemClick = this.handleLogItemClick.bind(this);
-    this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
-    this.handleChangesItemClick = this.handleChangesItemClick.bind(this);
-    this.handlePanelSplitDBClick = this.handlePanelSplitDBClick.bind(this);
-    this.handleLogViewWidthChange = this.handleLogViewWidthChange.bind(this);
-    this.handleResultError = this.handleResultError.bind(this);
-    // init state
-    this.state = {
-      repositoryName: '',
-      repositoryPath: '',
-      currentCommit: null,
-      nextCommit: null,
-      logs: [],
-      changes: [],
-      status: [],
-      selectedFiles: [],
-      commitMsg: '',
-      popupMsg: '',
-      popupTitle: '',
-      isPopupVisible: false,
-      gridTemplateColumns: '',
-      logViewWidth: 0,
-      onPopupCancel: () => {
-        this.setState({
-          isPopupVisible: false
-        });
-      }
-    };
-
-    // register ipc reply handlers
-    ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
-      if (msg) {
-        const reply = JSON.parse(msg) as IGitResult;
-        if (reply.result.state === COMMAND_STATE.SUCCESS) {
-          this.setState({
-            repositoryName: this.getRepositoryName(reply.repository),
-            repositoryPath: reply.repository
-          });
-          switch (reply.cmd) {
-            case GIT_COMMANDS.OPEN:
-              this.handleGitOpenReply(reply);
-              break;
-            case GIT_COMMANDS.LOG:
-              this.handleGitLogReply(reply);
-              break;
-            case GIT_COMMANDS.STATUS:
-              this.handleGitStatusReply(reply);
-              break;
-            case GIT_COMMANDS.CHANGES:
-              this.handleGitChangesReply(reply);
-              break;
-            case GIT_COMMANDS.DIFF:
-              this.handleGitDiffReply(reply);
-              break;
-            case GIT_COMMANDS.STAGE:
-              this.handleGitStageReply(reply);
-              break;
-            case GIT_COMMANDS.COMPARE:
-              this.handleGitCompareReply(reply);
-              break;
-            case GIT_COMMANDS.COMMIT:
-              this.handleGitCommitReply(reply);
-              break;
-            default:
-              this.handleUnknownReply(reply);
-              break;
-          }
-        } else {
-          this.handleResultError(reply);
-        }
-        // tslint:disable-next-line:no-console
-        console.log(msg);
-      }
-    });
+    this.bindEventHandlers();
+    this.initState();
+    this.registerIpcReplyHandlers();
   }
 
   componentDidMount() {
@@ -150,6 +60,9 @@ class MainView extends React.Component<IProps, IState> {
           style={{ gridTemplateColumns: this.state.gridTemplateColumns }}
         >
           <div className="grid-item-1">
+            <button onClick={this.handleGitRecentReposButtonClick}>
+              Recent Repositories
+            </button>
             <button onClick={this.handleGitOpenButtonClick}>Open</button>
             <span>{this.state.repositoryName}</span>
           </div>
@@ -237,9 +150,139 @@ class MainView extends React.Component<IProps, IState> {
           onPopupOk={this.state.onPopupOk}
           onPopupCancel={this.state.onPopupCancel}
           visible={this.state.isPopupVisible}
-        />
+          okText="New Repository"
+        >
+          <ul>
+            {this.state.recentRepositories.map((repository, index) => {
+              return (
+                <li
+                  key={repository}
+                  style={{
+                    cursor: 'pointer',
+                    listStyle: 'none',
+                    lineHeight: '25px',
+                    marginBottom: '5px',
+                    textAlign: 'left'
+                  }}
+                  onClick={e => {
+                    this.handleRecentRepoItemClick(repository, e);
+                  }}
+                >
+                  {repository}
+                </li>
+              );
+            })}
+          </ul>
+        </Popup>
       </div>
     );
+  }
+
+  private bindEventHandlers() {
+    this.handleGitStatusButtonClick = this.handleGitStatusButtonClick.bind(
+      this
+    );
+    this.handleGitOpenButtonClick = this.handleGitOpenButtonClick.bind(this);
+    this.handleGitChangesButtonClick = this.handleGitChangesButtonClick.bind(
+      this
+    );
+    this.handleGitDiffButtonClick = this.handleGitDiffButtonClick.bind(this);
+    this.handleGitLogButtonClick = this.handleGitLogButtonClick.bind(this);
+    this.handleGitStageButtonClick = this.handleGitStageButtonClick.bind(this);
+    this.handleGitCompareButtonClick = this.handleGitCompareButtonClick.bind(
+      this
+    );
+    this.handleGitCommitButtonClick = this.handleGitCommitButtonClick.bind(
+      this
+    );
+    this.handleCommitMsgInputChange = this.handleCommitMsgInputChange.bind(
+      this
+    );
+    this.handleLogItemClick = this.handleLogItemClick.bind(this);
+    this.handleStatusItemClick = this.handleStatusItemClick.bind(this);
+    this.handleChangesItemClick = this.handleChangesItemClick.bind(this);
+    this.handlePanelSplitDBClick = this.handlePanelSplitDBClick.bind(this);
+    this.handleLogViewWidthChange = this.handleLogViewWidthChange.bind(this);
+    this.handleResultError = this.handleResultError.bind(this);
+    this.handleGitRecentReposButtonClick = this.handleGitRecentReposButtonClick.bind(
+      this
+    );
+    this.handleRecentRepoItemClick = this.handleRecentRepoItemClick.bind(this);
+  }
+
+  private initState() {
+    this.state = {
+      repositoryName: '',
+      repositoryPath: '',
+      currentCommit: null,
+      nextCommit: null,
+      logs: [],
+      changes: [],
+      status: [],
+      selectedFiles: [],
+      recentRepositories: [],
+      commitMsg: '',
+      popupMsg: '',
+      popupTitle: '',
+      isPopupVisible: false,
+      gridTemplateColumns: '',
+      logViewWidth: 0,
+      onPopupCancel: () => {
+        this.setState({
+          isPopupVisible: false
+        });
+      }
+    };
+  }
+
+  private registerIpcReplyHandlers() {
+    ipcRenderer.on('git-result', (event: Electron.Event, msg?: string) => {
+      if (msg) {
+        const reply = JSON.parse(msg) as IGitResult;
+        if (reply.result.state === COMMAND_STATE.SUCCESS) {
+          this.setState({
+            repositoryName: this.getRepositoryName(reply.repository),
+            repositoryPath: reply.repository
+          });
+          switch (reply.cmd) {
+            case GIT_COMMANDS.OPEN:
+              this.handleGitOpenReply(reply);
+              break;
+            case GIT_COMMANDS.LOG:
+              this.handleGitLogReply(reply);
+              break;
+            case GIT_COMMANDS.STATUS:
+              this.handleGitStatusReply(reply);
+              break;
+            case GIT_COMMANDS.CHANGES:
+              this.handleGitChangesReply(reply);
+              break;
+            case GIT_COMMANDS.DIFF:
+              this.handleGitDiffReply(reply);
+              break;
+            case GIT_COMMANDS.STAGE:
+              this.handleGitStageReply(reply);
+              break;
+            case GIT_COMMANDS.COMPARE:
+              this.handleGitCompareReply(reply);
+              break;
+            case GIT_COMMANDS.COMMIT:
+              this.handleGitCommitReply(reply);
+              break;
+            case GIT_COMMANDS.RECENT_REPOS:
+              this.handleGitRecentReposReply(reply);
+              break;
+            default:
+              this.handleUnknownReply(reply);
+              break;
+          }
+        } else {
+          this.handleResultError(reply);
+        }
+        // tslint:disable-next-line:no-console
+        console.log(msg);
+      }
+    });
   }
 
   private getRepositoryName(repositoryPath: string) {
@@ -294,6 +337,27 @@ class MainView extends React.Component<IProps, IState> {
     ipcRenderer.send('git-command', request);
   }
 
+  private handleGitRecentReposButtonClick(
+    e: React.MouseEvent<HTMLButtonElement> | null
+  ) {
+    const command = {
+      cmd: GIT_COMMANDS.RECENT_REPOS,
+      args: [],
+      cwd: process.cwd()
+    };
+    const request = JSON.stringify(command);
+    ipcRenderer.send('git-command', request);
+  }
+
+  private handleRecentRepoItemClick(
+    repository: string,
+    e: React.MouseEvent<HTMLElement> | null
+  ) {
+    this.gitOpen(repository);
+    this.setState({
+      isPopupVisible: false
+    });
+  }
   private handleGitChangesButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
     this.gitChanges();
   }
@@ -540,6 +604,21 @@ class MainView extends React.Component<IProps, IState> {
     this.gitStatus();
   }
 
+  private handleGitRecentReposReply(reply: IGitResult) {
+    this.setState({
+      popupMsg: '',
+      popupTitle: 'Recent Repositories',
+      recentRepositories: reply.result.data,
+      isPopupVisible: true,
+      onPopupOk: () => {
+        this.handleGitOpenButtonClick(null);
+        this.setState({
+          isPopupVisible: false
+        });
+      }
+    });
+  }
+
   private handleUnknownReply(reply: IGitResult) {
     this.setState({
       popupMsg: 'UNKNOWN COMMAND',
@@ -565,17 +644,20 @@ class MainView extends React.Component<IProps, IState> {
   private handleResultError(reply: IGitResult) {
     const errCode = reply.result.data[0];
     const errMsg = reply.result.data[1];
-    this.setState({
-      popupMsg: errMsg,
-      popupTitle: errCode,
-      isPopupVisible: true,
-      onPopupOk: () => {
-        this.handleGitOpenButtonClick(null);
-        this.setState({
-          isPopupVisible: false
-        });
-      }
-    });
+    if (errCode === ERRORS.E001.code) {
+      this.handleGitRecentReposButtonClick(null);
+    } else {
+      this.setState({
+        popupMsg: errMsg,
+        popupTitle: errCode,
+        isPopupVisible: true,
+        onPopupOk: () => {
+          this.setState({
+            isPopupVisible: false
+          });
+        }
+      });
+    }
   }
 }
 

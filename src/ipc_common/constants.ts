@@ -34,7 +34,8 @@ export enum GIT_COMMANDS {
   OPEN = 'open',
   STAGE = 'stage',
   STATUS = 'status',
-  UNSTAGE = 'unstage'
+  UNSTAGE = 'unstage',
+  RECENT_REPOS = 'recent_repos'
 }
 
 export enum GIT_STATUS {

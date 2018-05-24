@@ -3,7 +3,8 @@ import './Popup.scss';
 
 interface IPopupProps {
   popupTitle: string;
-  popupMsg: string;
+  popupMsg?: string;
+  okText?: string;
   onPopupOk?: () => void;
   onPopupCancel?: () => void;
   visible: boolean;
@@ -31,11 +32,12 @@ class Popup extends React.Component<IPopupProps, IPopupState> {
                 }
               }}
             >
-              X
+              &times;
             </span>
           </div>
           <div className="popup__content">
             <span>{this.props.popupMsg}</span>
+            {this.props.children}
           </div>
           <div className="popup__actions">
             <button
@@ -45,7 +47,7 @@ class Popup extends React.Component<IPopupProps, IPopupState> {
                 }
               }}
             >
-              OK
+              {this.props.okText || 'OK'}
             </button>
           </div>
         </div>

@@ -47,6 +47,9 @@ export default class GitHelper {
             case GIT_COMMANDS.COMMIT:
               reply = await GitHelper.commitHandler(command, GitHelper.repository);
               break;
+            case GIT_COMMANDS.RECENT_REPOS:
+              reply = await GitHelper.recentReposHandler(command);
+              break;
             default:
               reply = {
                 cmd: command.cmd,
@@ -62,6 +65,8 @@ export default class GitHelper {
           }
         } else if (command.cmd === GIT_COMMANDS.OPEN) {
           reply = await GitHelper.openHandler(command);
+        } else if (command.cmd === GIT_COMMANDS.RECENT_REPOS) {
+          reply = await GitHelper.recentReposHandler(command);
         } else {
           reply = {
             cmd: command.cmd,
@@ -137,6 +142,18 @@ export default class GitHelper {
       result: {
         state: COMMAND_STATE.SUCCESS,
         data: []
+      }
+    };
+  }
+
+  private static async recentReposHandler(command: IGitCommand): Promise<IGitResult> {
+    const data = GitHelper.readFromDataFile();
+    return {
+      cmd: command.cmd,
+      repository: GitHelper.repository ? GitHelper.repository.path() : '',
+      result: {
+        state: COMMAND_STATE.SUCCESS,
+        data: data.recent
       }
     };
   }
