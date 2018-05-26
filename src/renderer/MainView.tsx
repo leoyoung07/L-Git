@@ -13,6 +13,7 @@ import {
   IGitStatus
 } from '../ipc_common/constants';
 import ChangesView from './ChangesView';
+import ClickOutside from './ClickOutside';
 import LogView from './LogView';
 import './MainView.scss';
 import Popup from './Popup';
@@ -114,13 +115,15 @@ class MainView extends React.Component<IProps, IState> {
             </button>
           </div>
           <div className="grid-item-3">
-            <LogView
-              currentCommit={this.state.currentCommit}
-              nextCommit={this.state.nextCommit}
-              logs={this.state.logs}
-              handleLogItemClick={this.handleLogItemClick}
-              handleWidthChange={this.handleLogViewWidthChange}
-            />
+            <ClickOutside onClickOutside={this.handleLogViewClickOutside}>
+              <LogView
+                currentCommit={this.state.currentCommit}
+                nextCommit={this.state.nextCommit}
+                logs={this.state.logs}
+                handleLogItemClick={this.handleLogItemClick}
+                handleWidthChange={this.handleLogViewWidthChange}
+              />
+            </ClickOutside>
           </div>
           <div className="grid-item-4">
             {this.state.status.length > 0 ? (
@@ -208,6 +211,7 @@ class MainView extends React.Component<IProps, IState> {
       this
     );
     this.handleRecentRepoItemClick = this.handleRecentRepoItemClick.bind(this);
+    this.handleLogViewClickOutside = this.handleLogViewClickOutside.bind(this);
   }
 
   private initState() {
@@ -658,6 +662,13 @@ class MainView extends React.Component<IProps, IState> {
         }
       });
     }
+  }
+
+  private handleLogViewClickOutside(e: MouseEvent) {
+    this.setState({
+      currentCommit: null,
+      nextCommit: null
+    });
   }
 }
 
