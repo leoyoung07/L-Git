@@ -112,15 +112,18 @@ const ButtonsView = (props: IButtonsViewProps) => {
 class MainView extends React.Component<IProps, IState> {
   private openViewRef = React.createRef<HTMLDivElement>();
   private compareViewRef = React.createRef<HTMLDivElement>();
+
+  private gitStatusTimer: number | null;
   constructor(props: IProps) {
     super(props);
     this.bindEventHandlers();
     this.initState();
     this.registerIpcReplyHandlers();
+    this.gitStatusTimer = null;
   }
 
   componentDidMount() {
-    this.gitStatus();
+    this.startGitStatusTimer();
     this.gitLog();
   }
   render() {
@@ -131,11 +134,13 @@ class MainView extends React.Component<IProps, IState> {
           style={{ gridTemplateColumns: this.state.gridTemplateColumns }}
         >
           <div className="grid-item-1" ref={this.openViewRef}>
-            <button onClick={this.handleGitRecentReposButtonClick}>
-              Recent Repositories
-            </button>
-            <button onClick={this.handleGitOpenButtonClick}>Open</button>
-            <span>{this.state.repositoryName}</span>
+            <ClickOutside onClickOutside={this.handleOpenViewClickOutside}>
+              <button onClick={this.handleGitRecentReposButtonClick}>
+                Recent Repositories
+              </button>
+              <button onClick={this.handleGitOpenButtonClick}>Open</button>
+              <span>{this.state.repositoryName}</span>
+            </ClickOutside>
           </div>
           <div className="grid-item-2">
             <ButtonsView
@@ -254,6 +259,7 @@ class MainView extends React.Component<IProps, IState> {
     );
     this.handleRecentRepoItemClick = this.handleRecentRepoItemClick.bind(this);
     this.handleLogViewClickOutside = this.handleLogViewClickOutside.bind(this);
+    this.handleOpenViewClickOutside = this.handleOpenViewClickOutside.bind(this);
   }
 
   private initState() {
@@ -352,7 +358,6 @@ class MainView extends React.Component<IProps, IState> {
     const request = JSON.stringify(command);
     ipcRenderer.send('git-command', request);
     this.setState({
-      status: [],
       changes: []
     });
   }
@@ -718,7 +723,32 @@ class MainView extends React.Component<IProps, IState> {
         if (this.compareViewRef.current) {
           this.compareViewRef.current.innerHTML = '';
         }
+        this.startGitStatusTimer();
       }
+    }
+  }
+
+  private handleOpenViewClickOutside(e: MouseEvent) {
+    if (this.gitStatusTimer) {
+      window.clearTimeout(this.gitStatusTimer);
+      this.gitStatusTimer = null;
+    }
+  }
+
+  private startGitStatusTimer() {
+    if (!this.gitStatusTimer) {
+      const timer = () => {
+        this.gitStatus();
+        this.gitStatusTimer = window.setTimeout(timer, 1000);
+      };
+      this.gitStatus();
+      timer();
+    }
+  }
+
+  private stopGitStatusTimer() {
+    if (this.gitStatusTimer) {
+      window.clearTimeout(this.gitStatusTimer);
     }
   }
 }
