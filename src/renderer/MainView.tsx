@@ -41,7 +41,8 @@ interface IState {
 }
 
 class MainView extends React.Component<IProps, IState> {
-  private logViewRef = React.createRef();
+  private openViewRef = React.createRef<HTMLDivElement>();
+  private compareViewRef = React.createRef<HTMLDivElement>();
   constructor(props: IProps) {
     super(props);
     this.bindEventHandlers();
@@ -60,7 +61,7 @@ class MainView extends React.Component<IProps, IState> {
           className="grid"
           style={{ gridTemplateColumns: this.state.gridTemplateColumns }}
         >
-          <div className="grid-item-1">
+          <div className="grid-item-1" ref={this.openViewRef}>
             <button onClick={this.handleGitRecentReposButtonClick}>
               Recent Repositories
             </button>
@@ -140,7 +141,7 @@ class MainView extends React.Component<IProps, IState> {
                 handleChangesItemClick={this.handleChangesItemClick}
               />
             ) : null}
-            <div id="compareView" className="compare-view" />
+            <div className="compare-view" ref={this.compareViewRef}/>
           </div>
           <div
             className="grid-item-5"
@@ -594,7 +595,7 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitCompareReply(reply: IGitResult) {
-    const $compareView = document.getElementById('compareView');
+    const $compareView = this.compareViewRef.current;
     if ($compareView) {
       $compareView.innerHTML = '';
       CodeMirror.MergeView($compareView, {
@@ -665,10 +666,19 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleLogViewClickOutside(e: MouseEvent) {
-    this.setState({
-      currentCommit: null,
-      nextCommit: null
-    });
+    if (this.openViewRef && this.openViewRef.current) {
+      if (this.openViewRef.current.contains(e.target as Node)) {
+        this.setState({
+          currentCommit: null,
+          nextCommit: null,
+          changes: [],
+          selectedFiles: []
+        });
+        if (this.compareViewRef.current) {
+          this.compareViewRef.current.innerHTML = '';
+        }
+      }
+    }
   }
 }
 
