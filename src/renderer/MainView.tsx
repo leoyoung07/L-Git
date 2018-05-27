@@ -40,6 +40,75 @@ interface IState {
   onPopupCancel?: () => void;
 }
 
+interface IButtonsViewProps {
+  handleGitStatusButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleGitChangesButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleGitDiffButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleGitStageButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleGitLogButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleGitCompareButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleGitCommitButtonClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  handleCommitMsgInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  changesButtonDisabled: boolean;
+  diffButtonDisabled: boolean;
+  stageButtonDisabled: boolean;
+  logButtonDisabled: boolean;
+  compareButtonDisabled: boolean;
+  commitButtonDisabled: boolean;
+  commitMsg: string;
+}
+
+const ButtonsView = (props: IButtonsViewProps) => {
+  return (
+    <div>
+      <button onClick={props.handleGitStatusButtonClick}>Status</button>
+      <button
+        disabled={props.changesButtonDisabled}
+        onClick={props.handleGitChangesButtonClick}
+      >
+        Changes
+      </button>
+      <button
+        disabled={props.diffButtonDisabled}
+        onClick={props.handleGitDiffButtonClick}
+      >
+        Diff
+      </button>
+      <button
+        disabled={
+          props.stageButtonDisabled
+        }
+        onClick={props.handleGitStageButtonClick}
+      >
+        Stage
+      </button>
+      <button
+        disabled={props.logButtonDisabled}
+        onClick={props.handleGitLogButtonClick}
+      >
+        Log
+      </button>
+      <button
+        disabled={props.compareButtonDisabled}
+        onClick={props.handleGitCompareButtonClick}
+      >
+        Compare
+      </button>
+      <input
+        type="text"
+        value={props.commitMsg}
+        onChange={props.handleCommitMsgInputChange}
+      />
+      <button
+        disabled={props.commitButtonDisabled}
+        onClick={props.handleGitCommitButtonClick}
+      >
+        Commit
+      </button>
+    </div>
+  );
+};
+
 class MainView extends React.Component<IProps, IState> {
   private openViewRef = React.createRef<HTMLDivElement>();
   private compareViewRef = React.createRef<HTMLDivElement>();
@@ -69,51 +138,23 @@ class MainView extends React.Component<IProps, IState> {
             <span>{this.state.repositoryName}</span>
           </div>
           <div className="grid-item-2">
-            <button onClick={this.handleGitStatusButtonClick}>Status</button>
-            <button
-              disabled={!this.state.currentCommit}
-              onClick={this.handleGitChangesButtonClick}
-            >
-              Changes
-            </button>
-            <button
-              disabled={!this.state.currentCommit || !this.state.nextCommit}
-              onClick={this.handleGitDiffButtonClick}
-            >
-              Diff
-            </button>
-            <button
-              disabled={
-                !this.state.selectedFiles ||
-                this.state.selectedFiles.length <= 0
-              }
-              onClick={this.handleGitStageButtonClick}
-            >
-              Stage
-            </button>
-            <button
-              disabled={!this.state.repositoryPath}
-              onClick={this.handleGitLogButtonClick}
-            >
-              Log
-            </button>
-            <button
-              disabled={this.state.selectedFiles.length <= 0}
-              onClick={this.handleGitCompareButtonClick}
-            >
-              Compare
-            </button>
-            <input
-              type="text"
-              value={this.state.commitMsg}
-              onChange={this.handleCommitMsgInputChange}
+            <ButtonsView
+              handleGitStatusButtonClick={this.handleGitStatusButtonClick}
+              handleGitChangesButtonClick={this.handleGitChangesButtonClick}
+              handleGitDiffButtonClick={this.handleGitDiffButtonClick}
+              handleGitStageButtonClick={this.handleGitStageButtonClick}
+              handleGitLogButtonClick={this.handleGitLogButtonClick}
+              handleGitCompareButtonClick={this.handleGitCompareButtonClick}
+              handleGitCommitButtonClick={this.handleGitCommitButtonClick}
+              handleCommitMsgInputChange={this.handleCommitMsgInputChange}
+              changesButtonDisabled={!this.state.currentCommit}
+              diffButtonDisabled={!this.state.currentCommit || !this.state.nextCommit}
+              stageButtonDisabled={!this.state.selectedFiles || this.state.selectedFiles.length <= 0}
+              logButtonDisabled={!this.state.repositoryPath}
+              compareButtonDisabled={this.state.selectedFiles.length <= 0}
+              commitButtonDisabled={!this.state.commitMsg}
+              commitMsg={this.state.commitMsg}
             />
-            <button
-              disabled={!this.state.commitMsg}
-              onClick={this.handleGitCommitButtonClick}
-            >
-              Commit
-            </button>
           </div>
           <div className="grid-item-3">
             <ClickOutside onClickOutside={this.handleLogViewClickOutside}>
@@ -141,7 +182,7 @@ class MainView extends React.Component<IProps, IState> {
                 handleChangesItemClick={this.handleChangesItemClick}
               />
             ) : null}
-            <div className="compare-view" ref={this.compareViewRef}/>
+            <div className="compare-view" ref={this.compareViewRef} />
           </div>
           <div
             className="grid-item-5"
@@ -666,7 +707,7 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleLogViewClickOutside(e: MouseEvent) {
-    if (this.openViewRef && this.openViewRef.current) {
+    if (this.openViewRef.current) {
       if (this.openViewRef.current.contains(e.target as Node)) {
         this.setState({
           currentCommit: null,
