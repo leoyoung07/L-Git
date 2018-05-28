@@ -124,7 +124,6 @@ class MainView extends React.Component<IProps, IState> {
 
   componentDidMount() {
     this.startGitStatusTimer();
-    this.gitLog();
   }
   render() {
     return (
@@ -596,8 +595,7 @@ class MainView extends React.Component<IProps, IState> {
   }
 
   private handleGitOpenReply(reply: IGitResult) {
-    this.gitStatus();
-    this.gitLog();
+    this.startGitStatusTimer();
   }
 
   private handleGitStatusReply(reply: IGitResult) {
@@ -739,6 +737,7 @@ class MainView extends React.Component<IProps, IState> {
     if (!this.gitStatusTimer) {
       const timer = () => {
         this.gitStatus();
+        this.gitLog();
         this.gitStatusTimer = window.setTimeout(timer, 1000);
       };
       this.gitStatus();
