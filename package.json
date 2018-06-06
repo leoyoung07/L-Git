@@ -17,7 +17,6 @@
     "test": "run-s parcel:build \"test:jest {@}\" --",
     "test:jest": "jest",
     "lint": "tslint src/**/*.ts{,x}",
-    "postinstall": "electron-builder install-app-deps",
     "prebuild": "rm -rf dist/",
     "build": "run-s parcel:build electron:build"
   },
